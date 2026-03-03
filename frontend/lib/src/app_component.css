@@ -156,7 +156,7 @@ p {
 .dashboard-filters {
   display: grid;
   gap: var(--s-2);
-  grid-template-columns: 240px 170px 160px 160px;
+  grid-template-columns: 240px 170px 160px 160px 140px;
 }
 
 .online-pill {

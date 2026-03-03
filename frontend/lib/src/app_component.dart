@@ -768,6 +768,13 @@ class AppComponent implements OnInit {
     listDateTo = '';
   }
 
+  void clearDashboardFilters() {
+    dashboardUnidadeFilter = 'all';
+    dashboardMonthFilter = 'all';
+    dashboardDateFrom = '';
+    dashboardDateTo = '';
+  }
+
   void printLaudo() {
     html.window.print();
   }
