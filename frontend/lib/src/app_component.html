@@ -121,12 +121,6 @@
     <section *ngIf="currentPage == 'novo'" class="novo-page">
       <div class="page-head form-head">
         <h1>{{ novoTitulo }}</h1>
-        <div class="form-actions-top form-actions-floating no-print">
-          <button type="button" class="secondary" (click)="switchPage('laudos')">Cancelar</button>
-          <button type="button" class="secondary" (click)="printLaudo()">Imprimir</button>
-          <button type="button" class="secondary" *ngIf="viewOnly" (click)="enableEditingFromView()">Editar</button>
-          <button type="button" *ngIf="!viewOnly" (click)="submitForm()" [disabled]="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
-        </div>
       </div>
       <p class="required-hint">Campos com <span>*</span> sao obrigatorios.</p>
 
@@ -138,17 +132,11 @@
         <div class="grid two">
           <label class="is-required">
             1. Nome do Estabelecimento Solicitante
-            <input
-              type="text"
-              [attr.list]="'solicitantes-list'"
-              [ngModel]="solicitanteDisplay"
-              (ngModelChange)="onSolicitanteDisplayChanged($event)"
-              placeholder="Buscar por nome do estabelecimento ou CNES..."
-              required
-            />
-            <datalist id="solicitantes-list">
-              <option *ngFor="let est of solicitantes" [value]="solicitanteOptionLabel(est)"></option>
-            </datalist>
+            <input type="text" [(ngModel)]="solicitanteSearch" placeholder="Buscar por nome..." />
+            <select [(ngModel)]="solicitanteCnes" required>
+              <option value="">Selecione o estabelecimento</option>
+              <option *ngFor="let est of solicitantesFiltrados" [value]="est.cnes">{{ est.nome }}</option>
+            </select>
           </label>
           <label>
             2. CNES
@@ -301,6 +289,15 @@
         </div>
       </div>
       </fieldset>
+
+      <div class="form-actions-footer no-print">
+        <div class="form-actions-top form-actions-floating">
+          <button type="button" class="secondary" (click)="switchPage('laudos')">Cancelar</button>
+          <button type="button" class="secondary" (click)="printLaudo()">Imprimir</button>
+          <button type="button" class="secondary" *ngIf="viewOnly" (click)="enableEditingFromView()">Editar</button>
+          <button type="button" *ngIf="!viewOnly" (click)="submitForm()" [disabled]="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
+        </div>
+      </div>
     </section>
 
     <section *ngIf="currentPage == 'laudos'">

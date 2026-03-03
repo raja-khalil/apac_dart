@@ -380,13 +380,13 @@ th {
 }
 
 .form-head {
-  margin-bottom: var(--s-3);
+  margin-bottom: var(--s-2);
 }
 
 .required-hint {
   color: var(--c-muted);
   font-size: var(--fz-sm);
-  margin: 0 0 var(--s-3);
+  margin: 0 0 var(--s-5);
 }
 
 .required-hint span {
@@ -403,14 +403,26 @@ th {
 }
 
 .form-actions-floating {
-  background: rgba(242, 244, 248, 0.92);
+  background: rgba(242, 244, 248, 0.98);
   border: 1px solid var(--c-border);
   border-radius: var(--r-3);
-  padding: var(--s-2);
-  position: sticky;
+  box-shadow: 0 -2px 10px rgba(19, 36, 58, 0.08);
+  padding: var(--s-2) var(--s-3);
+}
+
+.form-actions-footer {
+  bottom: 12px;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  pointer-events: none;
+  position: fixed;
   right: 0;
-  top: 8px;
-  z-index: 20;
+  z-index: 30;
+}
+
+.form-actions-footer .form-actions-floating {
+  pointer-events: auto;
 }
 
 button {
@@ -450,6 +462,10 @@ button[disabled] {
   margin: 0 auto;
   max-width: var(--w-form);
   overflow: hidden;
+}
+
+.novo-page {
+  padding-bottom: 96px;
 }
 
 .form-mode-shell {
@@ -780,8 +796,8 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .form-actions-floating {
-    position: static;
+  .form-actions-footer {
+    bottom: 8px;
   }
 }
 
@@ -809,7 +825,7 @@ textarea {
   .connection-banner,
   .error-banner,
   .form-head,
-  .form-actions-floating,
+  .form-actions-footer,
   .no-print {
     display: none !important;
   }

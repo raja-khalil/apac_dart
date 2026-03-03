@@ -66,7 +66,7 @@ class AppComponent implements OnInit {
   String listMonthFilter = 'all';
   String listDateFrom = '';
   String listDateTo = '';
-  String solicitanteDisplay = '';
+  String solicitanteSearch = '';
   String ociSearch = '';
 
   int? editingId;
@@ -117,6 +117,14 @@ class AppComponent implements OnInit {
     final list = List<Estabelecimento>.from(estabelecimentosSolicitantes);
     list.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
     return list;
+  }
+
+  List<Estabelecimento> get solicitantesFiltrados {
+    final query = solicitanteSearch.toLowerCase().trim();
+    if (query.isEmpty) return solicitantes;
+    return solicitantes.where((est) {
+      return est.nome.toLowerCase().contains(query);
+    }).toList();
   }
 
   List<Estabelecimento> get executantes => estabelecimentosExecutantes;
@@ -447,25 +455,6 @@ class AppComponent implements OnInit {
     _normalizeDashboardUnidadeFilter();
   }
 
-  void onSolicitanteDisplayChanged(dynamic value) {
-    solicitanteDisplay = value?.toString() ?? '';
-    final query = solicitanteDisplay.trim().toLowerCase();
-    if (query.isEmpty) {
-      solicitanteCnes = '';
-      return;
-    }
-
-    for (final est in solicitantes) {
-      if (_solicitanteOptionLabel(est).toLowerCase() == query ||
-          est.nome.toLowerCase() == query ||
-          est.cnes == _digitsOnly(query)) {
-        solicitanteCnes = est.cnes;
-        solicitanteDisplay = _solicitanteOptionLabel(est);
-        return;
-      }
-    }
-  }
-
   Future<void> submitForm() async {
     if (viewOnly) return;
 
@@ -617,7 +606,7 @@ class AppComponent implements OnInit {
 
     editingId = laudo.id;
     solicitanteCnes = (solicitante['cnes'] ?? laudo.unidadeCnes).toString();
-    _syncSolicitanteDisplayByCnes();
+    solicitanteSearch = '';
     executanteCnes = (executante['cnes'] ?? '').toString();
     ociCodigo = laudo.ociCodigo;
     status = laudo.status;
@@ -877,23 +866,6 @@ class AppComponent implements OnInit {
     return null;
   }
 
-  String solicitanteOptionLabel(Estabelecimento est) {
-    return _solicitanteOptionLabel(est);
-  }
-
-  String _solicitanteOptionLabel(Estabelecimento est) {
-    return '${est.nome} (CNES ${est.cnes})';
-  }
-
-  void _syncSolicitanteDisplayByCnes() {
-    final est = _estabelecimentoByCnes(solicitanteCnes, solicitantes);
-    if (est == null) {
-      solicitanteDisplay = '';
-      return;
-    }
-    solicitanteDisplay = _solicitanteOptionLabel(est);
-  }
-
   void _normalizeDashboardUnidadeFilter() {
     if (dashboardUnidadeFilter == 'all') return;
     for (final unidade in dashboardUnidades) {
@@ -907,7 +879,7 @@ class AppComponent implements OnInit {
     viewOnly = false;
 
     solicitanteCnes = '';
-    solicitanteDisplay = '';
+    solicitanteSearch = '';
     executanteCnes = '';
     ociCodigo = '';
     status = 'rascunho';
