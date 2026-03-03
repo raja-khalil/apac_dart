@@ -505,6 +505,42 @@ class AppComponent implements OnInit {
     pacienteCartaoSus = _formatCartaoSus(value?.toString() ?? '');
   }
 
+  void onPacienteTelefoneChanged(dynamic value) {
+    pacienteTelefone = _formatTelefone(value?.toString() ?? '');
+  }
+
+  void onPacienteCepChanged(dynamic value) {
+    pacienteCep = _formatCep(value?.toString() ?? '');
+  }
+
+  void onCid10PrincipalChanged(dynamic value) {
+    cid10Principal = _formatCid10(value?.toString() ?? '');
+  }
+
+  void onCid10SecundarioChanged(dynamic value) {
+    cid10Secundario = _formatCid10(value?.toString() ?? '');
+  }
+
+  void onCid10CausasChanged(dynamic value) {
+    cid10Causas = _formatCid10(value?.toString() ?? '');
+  }
+
+  void onTipoDocumentoChanged(dynamic value) {
+    final next = value?.toString() ?? 'CPF';
+    tipoDocumento = next;
+    documentoSolicitante = _formatDocumentoSolicitante(documentoSolicitante);
+  }
+
+  void onDocumentoSolicitanteChanged(dynamic value) {
+    documentoSolicitante =
+        _formatDocumentoSolicitante(value?.toString() ?? '');
+  }
+
+  int get documentoMaskMaxLength => tipoDocumento == 'CPF' ? 14 : 18;
+
+  String get documentoMaskPlaceholder =>
+      tipoDocumento == 'CPF' ? '000.000.000-00' : '000 0000 0000 0000';
+
   void addProcedimentoSecundarioManual() {
     procedimentosSecundariosManuais.add({
       'codigo': '',
@@ -516,6 +552,12 @@ class AppComponent implements OnInit {
   void removeProcedimentoSecundarioManual(int index) {
     if (index < 0 || index >= procedimentosSecundariosManuais.length) return;
     procedimentosSecundariosManuais.removeAt(index);
+  }
+
+  void onManualSecCodigoChanged(int index, dynamic value) {
+    if (index < 0 || index >= procedimentosSecundariosManuais.length) return;
+    procedimentosSecundariosManuais[index]['codigo'] =
+        _formatCodigoSigtap(value?.toString() ?? '');
   }
 
   Future<void> tentarReconectarApi() async {
@@ -689,6 +731,79 @@ class AppComponent implements OnInit {
       start = end;
     }
     return chunks.join(' ');
+  }
+
+  String _formatTelefone(String input) {
+    final digits = _digitsOnly(input);
+    final truncated = digits.length > 11 ? digits.substring(0, 11) : digits;
+    if (truncated.isEmpty) return '';
+
+    if (truncated.length <= 2) return '($truncated';
+    final ddd = truncated.substring(0, 2);
+    final rest = truncated.substring(2);
+
+    if (rest.length <= 4) return '($ddd) $rest';
+    if (rest.length <= 8) {
+      return '($ddd) ${rest.substring(0, 4)}-${rest.substring(4)}';
+    }
+    return '($ddd) ${rest.substring(0, 5)}-${rest.substring(5)}';
+  }
+
+  String _formatCep(String input) {
+    final digits = _digitsOnly(input);
+    final truncated = digits.length > 8 ? digits.substring(0, 8) : digits;
+    if (truncated.length <= 5) return truncated;
+    return '${truncated.substring(0, 5)}-${truncated.substring(5)}';
+  }
+
+  String _formatCodigoSigtap(String input) {
+    final digits = _digitsOnly(input);
+    final truncated = digits.length > 10 ? digits.substring(0, 10) : digits;
+    final parts = <String>[];
+
+    if (truncated.isEmpty) return '';
+    final p1 = truncated.substring(0, truncated.length >= 2 ? 2 : truncated.length);
+    parts.add(p1);
+    if (truncated.length <= 2) return parts.first;
+
+    final p2End = truncated.length >= 4 ? 4 : truncated.length;
+    parts.add(truncated.substring(2, p2End));
+    if (truncated.length <= 4) return '${parts[0]}.${parts[1]}';
+
+    final p3End = truncated.length >= 6 ? 6 : truncated.length;
+    parts.add(truncated.substring(4, p3End));
+    if (truncated.length <= 6) return '${parts[0]}.${parts[1]}.${parts[2]}';
+
+    final p4End = truncated.length >= 9 ? 9 : truncated.length;
+    final p4 = truncated.substring(6, p4End);
+    if (truncated.length <= 9) return '${parts[0]}.${parts[1]}.${parts[2]}.$p4';
+
+    final p5 = truncated.substring(9, 10);
+    return '${parts[0]}.${parts[1]}.${parts[2]}.$p4-$p5';
+  }
+
+  String _formatCid10(String input) {
+    final raw = input.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (raw.isEmpty) return '';
+
+    final letterMatch = RegExp(r'[A-Z]').firstMatch(raw);
+    if (letterMatch == null) return '';
+    final letter = letterMatch.group(0)!;
+    final afterLetter = raw.substring(letterMatch.start + 1);
+    final baseTail = afterLetter.replaceAll(RegExp(r'[^0-9A-Z]'), '');
+    final base = '$letter${baseTail.length >= 2 ? baseTail.substring(0, 2) : baseTail}';
+    if (base.length < 3) return base;
+
+    final restSource = baseTail.length > 2 ? baseTail.substring(2) : '';
+    final rest = restSource.length > 2 ? restSource.substring(0, 2) : restSource;
+    return rest.isEmpty ? base : '$base.$rest';
+  }
+
+  String _formatDocumentoSolicitante(String input) {
+    if (tipoDocumento == 'CPF') {
+      return _formatCpf(input);
+    }
+    return _formatCartaoSus(input);
   }
 }
 
