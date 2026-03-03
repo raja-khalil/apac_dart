@@ -16,15 +16,7 @@ class LaudoService {
   Future<bool> checkHealth() async {
     final baseUrl = await _resolveBaseUrl();
     if (baseUrl == null) return false;
-
-    try {
-      final response = await _client
-          .get(Uri.parse('$baseUrl/health'))
-          .timeout(const Duration(seconds: 3));
-      return response.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
+    return _ping(baseUrl);
   }
 
   Future<List<Laudo>> fetchLaudos({
@@ -32,8 +24,6 @@ class LaudoService {
     String? status,
     String? unidadeCnes,
   }) async {
-    final baseUrl = await _ensureBaseUrl();
-
     final queryParams = <String, String>{};
     if (query != null && query.trim().isNotEmpty) {
       queryParams['q'] = query.trim();
@@ -45,91 +35,94 @@ class LaudoService {
       queryParams['unidade_cnes'] = unidadeCnes.trim();
     }
 
-    final uri = Uri.parse('$baseUrl/laudos').replace(queryParameters: queryParams);
-
     try {
-      final response = await _client.get(uri).timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) {
-        throw Exception('Falha ao carregar laudos (${response.statusCode}).');
-      }
+      return await _executeWithRecovery((baseUrl) async {
+        final uri = Uri.parse('$baseUrl/laudos')
+            .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+        final response = await _client.get(uri).timeout(const Duration(seconds: 5));
+        if (response.statusCode != 200) {
+          throw Exception('Falha ao carregar laudos (${response.statusCode}).');
+        }
 
-      final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      final data = (payload['data'] as List<dynamic>?) ?? <dynamic>[];
+        final payload = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = (payload['data'] as List<dynamic>?) ?? <dynamic>[];
 
-      return data
-          .map((item) => Laudo.fromJson(item as Map<String, dynamic>))
-          .toList();
+        return data
+            .map((item) => Laudo.fromJson(item as Map<String, dynamic>))
+            .toList();
+      });
     } on TimeoutException {
-      throw Exception('Tempo esgotado ao consultar API em $baseUrl.');
+      throw Exception('Tempo esgotado ao consultar API.');
     } catch (e) {
-      throw Exception('Nao foi possivel conectar na API em $baseUrl. $e');
+      throw Exception('Nao foi possivel conectar na API. $e');
     }
   }
 
   Future<Laudo> createLaudo(Map<String, dynamic> body) async {
-    final baseUrl = await _ensureBaseUrl();
-
     try {
-      final response = await _client
-          .post(
-            Uri.parse('$baseUrl/laudos'),
-            headers: const {'content-type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 5));
+      return await _executeWithRecovery((baseUrl) async {
+        final response = await _client
+            .post(
+              Uri.parse('$baseUrl/laudos'),
+              headers: const {'content-type': 'application/json'},
+              body: jsonEncode(body),
+            )
+            .timeout(const Duration(seconds: 5));
 
-      if (response.statusCode != 201) {
-        throw Exception(_extractError(response.body, response.statusCode));
-      }
+        if (response.statusCode != 201) {
+          throw Exception(_extractError(response.body, response.statusCode));
+        }
 
-      final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      return Laudo.fromJson(payload['data'] as Map<String, dynamic>);
+        final payload = jsonDecode(response.body) as Map<String, dynamic>;
+        return Laudo.fromJson(payload['data'] as Map<String, dynamic>);
+      });
     } on TimeoutException {
-      throw Exception('Tempo esgotado ao salvar laudo em $baseUrl.');
+      throw Exception('Tempo esgotado ao salvar laudo.');
     } catch (e) {
-      throw Exception('Nao foi possivel salvar. Verifique se o backend esta ativo em $baseUrl. $e');
+      throw Exception('Nao foi possivel salvar. Verifique se o backend esta ativo. $e');
     }
   }
 
   Future<Laudo> updateLaudo(int id, Map<String, dynamic> body) async {
-    final baseUrl = await _ensureBaseUrl();
-
     try {
-      final response = await _client
-          .put(
-            Uri.parse('$baseUrl/laudos/$id'),
-            headers: const {'content-type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 5));
+      return await _executeWithRecovery((baseUrl) async {
+        final response = await _client
+            .put(
+              Uri.parse('$baseUrl/laudos/$id'),
+              headers: const {'content-type': 'application/json'},
+              body: jsonEncode(body),
+            )
+            .timeout(const Duration(seconds: 5));
 
-      if (response.statusCode != 200) {
-        throw Exception(_extractError(response.body, response.statusCode));
-      }
+        if (response.statusCode != 200) {
+          throw Exception(_extractError(response.body, response.statusCode));
+        }
 
-      final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      return Laudo.fromJson(payload['data'] as Map<String, dynamic>);
+        final payload = jsonDecode(response.body) as Map<String, dynamic>;
+        return Laudo.fromJson(payload['data'] as Map<String, dynamic>);
+      });
     } on TimeoutException {
-      throw Exception('Tempo esgotado ao atualizar laudo em $baseUrl.');
+      throw Exception('Tempo esgotado ao atualizar laudo.');
     } catch (e) {
-      throw Exception('Nao foi possivel atualizar. Verifique se o backend esta ativo em $baseUrl. $e');
+      throw Exception('Nao foi possivel atualizar. Verifique se o backend esta ativo. $e');
     }
   }
 
   Future<void> deleteLaudo(int id) async {
-    final baseUrl = await _ensureBaseUrl();
-
     try {
-      final response = await _client
-          .delete(Uri.parse('$baseUrl/laudos/$id'))
-          .timeout(const Duration(seconds: 5));
-      if (response.statusCode != 200) {
-        throw Exception(_extractError(response.body, response.statusCode));
-      }
+      await _executeWithRecovery((baseUrl) async {
+        final response = await _client
+            .delete(Uri.parse('$baseUrl/laudos/$id'))
+            .timeout(const Duration(seconds: 5));
+        if (response.statusCode != 200) {
+          throw Exception(_extractError(response.body, response.statusCode));
+        }
+        return true;
+      });
     } on TimeoutException {
-      throw Exception('Tempo esgotado ao remover laudo em $baseUrl.');
+      throw Exception('Tempo esgotado ao remover laudo.');
     } catch (e) {
-      throw Exception('Nao foi possivel remover. Verifique se o backend esta ativo em $baseUrl. $e');
+      throw Exception('Nao foi possivel remover. Verifique se o backend esta ativo. $e');
     }
   }
 
@@ -149,36 +142,61 @@ class LaudoService {
 
   Future<String?> _resolveBaseUrl() async {
     if (_resolvedBaseUrl != null) {
-      return _resolvedBaseUrl;
+      final ok = await _ping(_resolvedBaseUrl!);
+      if (ok) return _resolvedBaseUrl;
+      _resolvedBaseUrl = null;
     }
 
     final protocol = html.window.location.protocol;
     final host = html.window.location.host;
     final port = html.window.location.port;
 
-    final candidates = <String>[
+    final candidates = _candidateBaseUrls(protocol, host, port);
+
+    for (final candidate in candidates.toSet()) {
+      final ok = await _ping(candidate);
+      if (ok) {
+        _resolvedBaseUrl = candidate;
+        return _resolvedBaseUrl;
+      }
+    }
+
+    return null;
+  }
+
+  List<String> _candidateBaseUrls(String protocol, String host, String port) {
+    return <String>[
       if (port == '8080') 'http://127.0.0.1:8081/api',
       if (port == '8081') 'http://127.0.0.1:8081/api',
       '$protocol//$host/api',
       'http://127.0.0.1:8081/api',
       'http://127.0.0.1:8080/api',
+      'http://localhost:8081/api',
+      'http://localhost:8080/api',
     ];
+  }
 
-    for (final candidate in candidates.toSet()) {
-      try {
-        final response = await _client
-            .get(Uri.parse('$candidate/health'))
-            .timeout(const Duration(seconds: 2));
-        if (response.statusCode == 200) {
-          _resolvedBaseUrl = candidate;
-          return _resolvedBaseUrl;
-        }
-      } catch (_) {
-        continue;
-      }
+  Future<bool> _ping(String baseUrl) async {
+    try {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/health'))
+          .timeout(const Duration(seconds: 2));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
     }
+  }
 
-    return null;
+  Future<T> _executeWithRecovery<T>(Future<T> Function(String baseUrl) action) async {
+    final first = await _ensureBaseUrl();
+    try {
+      return await action(first);
+    } catch (_) {
+      _resolvedBaseUrl = null;
+      final second = await _resolveBaseUrl();
+      if (second == null || second == first) rethrow;
+      return action(second);
+    }
   }
 
   String _extractError(String rawBody, int fallbackCode) {

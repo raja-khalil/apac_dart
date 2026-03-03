@@ -36,7 +36,7 @@
   --w-content: 1460px;
   --w-form: 872px;
   --h-card-stat: 110px;
-  --print-scale: 0.82;
+  --print-scale: 0.78;
 
   color: var(--c-title);
   display: block;
@@ -677,6 +677,12 @@ textarea {
     display: none !important;
   }
 
+  .required-hint,
+  .oci-helper,
+  .empty-tip {
+    display: none !important;
+  }
+
   .app-shell {
     background: #fff;
   }
@@ -719,26 +725,45 @@ textarea {
     zoom: var(--print-scale);
   }
 
-  .required-hint {
-    margin-bottom: 2mm;
-  }
-
   label {
-    font-size: 10px;
-    min-height: 52px;
-    padding: 4px;
+    font-size: 9px;
+    min-height: 44px;
+    padding: 3px;
   }
 
   input,
   select,
   textarea {
-    font-size: 10px;
-    min-height: 22px;
-    padding: 3px 4px;
+    font-size: 9px;
+    min-height: 19px;
+    padding: 2px 3px;
   }
 
   textarea {
-    min-height: 38px;
+    min-height: 28px;
+  }
+
+  .sheet-header,
+  .section-title {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+
+  .grid {
+    border-bottom-width: 0.7px;
+  }
+
+  .secondary-list {
+    padding: 2px;
+  }
+
+  .secondary-item {
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+
+  .secondary-item:not(.selected) {
+    display: none !important;
   }
 
   input,

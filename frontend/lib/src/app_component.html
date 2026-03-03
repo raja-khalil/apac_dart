@@ -207,7 +207,7 @@
 
         <div class="section-title">PROCEDIMENTO(S) SECUNDARIO(S)</div>
         <div class="secondary-list" *ngIf="secundariosAtuais.isNotEmpty">
-          <div class="secondary-item" *ngFor="let sec of secundariosAtuais">
+          <div class="secondary-item" *ngFor="let sec of secundariosAtuais" [class.selected]="secundarioSelecionado[sec.codigo] == true">
             <label class="checkbox-line">
               <input type="checkbox" [ngModel]="secundarioSelecionado[sec.codigo] == true" (ngModelChange)="toggleSecundario(sec.codigo, $event)" />
               <span>{{ sec.codigo }} - {{ sec.nome }}</span>
