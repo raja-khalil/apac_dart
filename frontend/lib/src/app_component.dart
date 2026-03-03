@@ -60,6 +60,9 @@ class AppComponent implements OnInit {
   String dashboardUnidadeFilter = 'all';
   String listSearch = '';
   String listStatusFilter = 'all';
+  String listMonthFilter = 'all';
+  String listDateFrom = '';
+  String listDateTo = '';
   String ociSearch = '';
 
   int? editingId;
@@ -154,10 +157,30 @@ class AppComponent implements OnInit {
 
   List<Laudo> get listLaudos {
     final q = listSearch.toLowerCase().trim();
+    final fromDate = listDateFrom.isEmpty ? null : DateTime.tryParse(listDateFrom);
+    final toDate = listDateTo.isEmpty ? null : DateTime.tryParse(listDateTo);
 
-    return laudos.where((laudo) {
+    final filtered = laudos.where((laudo) {
       final statusOk = listStatusFilter == 'all' || laudo.status == listStatusFilter;
       if (!statusOk) return false;
+
+      final createdAt = _parseCreatedAt(laudo);
+      if (listMonthFilter != 'all') {
+        if (createdAt == null || _monthKey(createdAt) != listMonthFilter) return false;
+      }
+
+      if (fromDate != null) {
+        if (createdAt == null || createdAt.isBefore(DateTime(fromDate.year, fromDate.month, fromDate.day))) {
+          return false;
+        }
+      }
+
+      if (toDate != null) {
+        final endExclusive = DateTime(toDate.year, toDate.month, toDate.day + 1);
+        if (createdAt == null || !createdAt.isBefore(endExclusive)) {
+          return false;
+        }
+      }
 
       if (q.isEmpty) return true;
 
@@ -172,6 +195,19 @@ class AppComponent implements OnInit {
           procCode.contains(q) ||
           procDesc.contains(q);
     }).toList();
+
+    filtered.sort((a, b) {
+      final byName = a.nomePaciente.toLowerCase().compareTo(b.nomePaciente.toLowerCase());
+      if (byName != 0) return byName;
+      final aCreated = _parseCreatedAt(a);
+      final bCreated = _parseCreatedAt(b);
+      if (aCreated == null && bCreated == null) return 0;
+      if (aCreated == null) return 1;
+      if (bCreated == null) return -1;
+      return aCreated.compareTo(bCreated);
+    });
+
+    return filtered;
   }
 
   List<LaudoGroup> get laudosPorOciPrincipal {
@@ -190,12 +226,44 @@ class AppComponent implements OnInit {
 
     return keys.map((key) {
       final parts = key.split('|');
+      final groupLaudos = grouped[key] ?? <Laudo>[];
+      groupLaudos.sort((a, b) {
+        final byName = a.nomePaciente.toLowerCase().compareTo(b.nomePaciente.toLowerCase());
+        if (byName != 0) return byName;
+        final aCreated = _parseCreatedAt(a);
+        final bCreated = _parseCreatedAt(b);
+        if (aCreated == null && bCreated == null) return 0;
+        if (aCreated == null) return 1;
+        if (bCreated == null) return -1;
+        return aCreated.compareTo(bCreated);
+      });
       return LaudoGroup(
         ociCodigo: parts.isNotEmpty ? parts.first : '',
         ociDescricao: parts.length > 1 ? parts.sublist(1).join('|') : '',
-        laudos: grouped[key] ?? <Laudo>[],
+        laudos: groupLaudos,
       );
     }).toList();
+  }
+
+  List<String> get availableMonths {
+    final months = <String>{};
+    for (final laudo in laudos) {
+      final created = _parseCreatedAt(laudo);
+      if (created == null) continue;
+      months.add(_monthKey(created));
+    }
+    final list = months.toList();
+    list.sort((a, b) => b.compareTo(a));
+    return list;
+  }
+
+  String monthLabel(String key) {
+    final parts = key.split('-');
+    if (parts.length != 2) return key;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null) return key;
+    return '${_monthLabel(DateTime(year, month, 1))} $year';
   }
 
   String get novoTitulo {
@@ -626,6 +694,9 @@ class AppComponent implements OnInit {
   void clearFilters() {
     listSearch = '';
     listStatusFilter = 'all';
+    listMonthFilter = 'all';
+    listDateFrom = '';
+    listDateTo = '';
   }
 
   void printLaudo() {
@@ -706,6 +777,15 @@ class AppComponent implements OnInit {
       12: 'Dez.',
     };
     return labels[value.month] ?? _capitalize(_monthFormatter.format(value));
+  }
+
+  DateTime? _parseCreatedAt(Laudo laudo) {
+    return DateTime.tryParse(laudo.createdAt);
+  }
+
+  String _monthKey(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    return '${value.year}-$month';
   }
 
   Estabelecimento? _estabelecimentoByCnes(String cnes, List<Estabelecimento> list) {

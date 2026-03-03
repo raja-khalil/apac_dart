@@ -623,7 +623,7 @@ textarea {
   align-items: center;
   display: grid;
   gap: var(--s-3);
-  grid-template-columns: 1fr 240px;
+  grid-template-columns: 1fr 220px 180px 170px 170px;
   padding: var(--s-4);
 }
 

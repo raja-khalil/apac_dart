@@ -307,6 +307,12 @@
           <option value="all">Todos status</option>
           <option *ngFor="let item of statusList" [value]="item">{{ statusLabel(item) }}</option>
         </select>
+        <select [(ngModel)]="listMonthFilter">
+          <option value="all">Todos meses</option>
+          <option *ngFor="let month of availableMonths" [value]="month">{{ monthLabel(month) }}</option>
+        </select>
+        <input type="date" [(ngModel)]="listDateFrom" />
+        <input type="date" [(ngModel)]="listDateTo" />
       </div>
 
       <div class="laudo-list">
