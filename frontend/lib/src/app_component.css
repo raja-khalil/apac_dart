@@ -390,6 +390,17 @@ th {
   gap: var(--s-2);
 }
 
+.form-actions-floating {
+  background: rgba(242, 244, 248, 0.92);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-3);
+  padding: var(--s-2);
+  position: sticky;
+  right: 0;
+  top: 8px;
+  z-index: 20;
+}
+
 button {
   background: var(--c-primary);
   border: 0;
@@ -427,6 +438,13 @@ button[disabled] {
   margin: 0 auto;
   max-width: var(--w-form);
   overflow: hidden;
+}
+
+.form-mode-shell {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
 }
 
 .sheet-header,
@@ -618,10 +636,40 @@ textarea {
 
 .laudo-item {
   align-items: center;
+  border-bottom: 1px solid #dde4ef;
   display: flex;
   justify-content: space-between;
   min-height: 96px;
   padding: var(--s-5);
+}
+
+.laudo-item:last-child {
+  border-bottom: 0;
+}
+
+.oci-group-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.oci-group-head {
+  align-items: center;
+  background: #f6f9fd;
+  border-bottom: 1px solid #dde4ef;
+  display: flex;
+  justify-content: space-between;
+  padding: var(--s-4) var(--s-5);
+}
+
+.oci-group-head h3 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.group-count {
+  color: var(--c-muted);
+  font-size: var(--fz-sm);
+  font-weight: 700;
 }
 
 .laudo-main h3 {
@@ -710,6 +758,10 @@ textarea {
     flex-direction: column;
     gap: var(--s-3);
   }
+
+  .form-actions-floating {
+    position: static;
+  }
 }
 
 @page {
@@ -736,6 +788,7 @@ textarea {
   .connection-banner,
   .error-banner,
   .form-head,
+  .form-actions-floating,
   .no-print {
     display: none !important;
   }

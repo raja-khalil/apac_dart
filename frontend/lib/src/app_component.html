@@ -113,15 +113,17 @@
 
     <section *ngIf="currentPage == 'novo'" class="novo-page">
       <div class="page-head form-head">
-        <h1>{{ editingId == null ? 'Novo Laudo APAC/OCI' : 'Editar Laudo APAC/OCI' }}</h1>
-        <div class="form-actions-top no-print">
+        <h1>{{ novoTitulo }}</h1>
+        <div class="form-actions-top form-actions-floating no-print">
           <button type="button" class="secondary" (click)="switchPage('laudos')">Cancelar</button>
           <button type="button" class="secondary" (click)="printLaudo()">Imprimir</button>
-          <button type="button" (click)="submitForm()" [disabled]="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
+          <button type="button" class="secondary" *ngIf="viewOnly" (click)="enableEditingFromView()">Editar</button>
+          <button type="button" *ngIf="!viewOnly" (click)="submitForm()" [disabled]="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
         </div>
       </div>
       <p class="required-hint">Campos com <span>*</span> sao obrigatorios.</p>
 
+      <fieldset class="form-mode-shell" [disabled]="viewOnly">
       <div class="form-sheet">
         <div class="sheet-header">LAUDO MEDICO PARA PROCEDIMENTOS DE ALTA COMPLEXIDADE - APAC</div>
 
@@ -284,6 +286,7 @@
           <label>52. CNES <input type="text" [value]="executanteCnes" readonly /></label>
         </div>
       </div>
+      </fieldset>
     </section>
 
     <section *ngIf="currentPage == 'laudos'">
@@ -307,19 +310,26 @@
       </div>
 
       <div class="laudo-list">
-        <article class="card laudo-item" *ngFor="let laudo of listLaudos">
-          <div class="laudo-main">
-            <h3>{{ laudo.nomePaciente }} <span [class]="statusClass(laudo.status)">{{ statusLabel(laudo.status) }}</span></h3>
-            <p>{{ laudo.ociCodigo }} - {{ laudo.ociDescricao }}</p>
-            <p>{{ laudo.unidadeSolicitante }} - {{ formatDate(laudo.createdAt) }}</p>
+        <article class="card oci-group-card" *ngFor="let group of laudosPorOciPrincipal">
+          <div class="oci-group-head">
+            <h3>{{ group.ociCodigo }} - {{ group.ociDescricao }}</h3>
+            <span class="group-count">{{ group.laudos.length }} laudo(s)</span>
           </div>
-          <div class="laudo-actions">
-            <button type="button" class="secondary" (click)="startEdit(laudo)">Editar</button>
-            <button type="button" class="danger" (click)="removeLaudo(laudo.id)">Excluir</button>
-          </div>
+
+          <article class="laudo-item" *ngFor="let laudo of group.laudos">
+            <div class="laudo-main">
+              <h3>{{ laudo.nomePaciente }} <span [class]="statusClass(laudo.status)">{{ statusLabel(laudo.status) }}</span></h3>
+              <p>{{ laudo.unidadeSolicitante }} - {{ formatDate(laudo.createdAt) }}</p>
+            </div>
+            <div class="laudo-actions">
+              <button type="button" class="secondary" (click)="startView(laudo)">Visualizar</button>
+              <button type="button" class="secondary" (click)="startEdit(laudo)">Editar</button>
+              <button type="button" class="danger" (click)="removeLaudo(laudo.id)">Excluir</button>
+            </div>
+          </article>
         </article>
 
-        <article class="card" *ngIf="listLaudos.isEmpty">
+        <article class="card" *ngIf="laudosPorOciPrincipal.isEmpty">
           Nenhum laudo encontrado para os filtros informados.
         </article>
       </div>

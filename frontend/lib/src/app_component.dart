@@ -23,6 +23,18 @@ class CategoryPoint {
   final String color;
 }
 
+class LaudoGroup {
+  LaudoGroup({
+    required this.ociCodigo,
+    required this.ociDescricao,
+    required this.laudos,
+  });
+
+  final String ociCodigo;
+  final String ociDescricao;
+  final List<Laudo> laudos;
+}
+
 @Component(
   selector: 'my-app',
   templateUrl: 'app_component.html',
@@ -51,6 +63,7 @@ class AppComponent implements OnInit {
   String ociSearch = '';
 
   int? editingId;
+  bool viewOnly = false;
 
   String solicitanteCnes = '';
   String executanteCnes = '';
@@ -159,6 +172,35 @@ class AppComponent implements OnInit {
           procCode.contains(q) ||
           procDesc.contains(q);
     }).toList();
+  }
+
+  List<LaudoGroup> get laudosPorOciPrincipal {
+    final grouped = <String, List<Laudo>>{};
+    for (final laudo in listLaudos) {
+      final key = '${laudo.ociCodigo}|${laudo.ociDescricao}';
+      grouped.putIfAbsent(key, () => <Laudo>[]).add(laudo);
+    }
+
+    final keys = grouped.keys.toList()
+      ..sort((a, b) {
+        final aCode = a.split('|').first;
+        final bCode = b.split('|').first;
+        return aCode.compareTo(bCode);
+      });
+
+    return keys.map((key) {
+      final parts = key.split('|');
+      return LaudoGroup(
+        ociCodigo: parts.isNotEmpty ? parts.first : '',
+        ociDescricao: parts.length > 1 ? parts.sublist(1).join('|') : '',
+        laudos: grouped[key] ?? <Laudo>[],
+      );
+    }).toList();
+  }
+
+  String get novoTitulo {
+    if (viewOnly) return 'Visualizar Laudo APAC/OCI';
+    return editingId == null ? 'Novo Laudo APAC/OCI' : 'Editar Laudo APAC/OCI';
   }
 
   int get rascunhoCount => _statusCount('rascunho');
@@ -272,11 +314,14 @@ class AppComponent implements OnInit {
     currentPage = page;
     errorMessage = null;
     if (page == 'novo' && editingId == null) {
+      viewOnly = false;
       _clearForm();
     }
   }
 
   Future<void> submitForm() async {
+    if (viewOnly) return;
+
     if (pacienteNome.trim().isEmpty || pacienteCpf.trim().isEmpty || pacienteDataNasc.isEmpty) {
       errorMessage = 'Preencha os campos obrigatorios do paciente.';
       return;
@@ -403,6 +448,20 @@ class AppComponent implements OnInit {
   }
 
   void startEdit(Laudo laudo) {
+    viewOnly = false;
+    _loadLaudoInForm(laudo);
+  }
+
+  void startView(Laudo laudo) {
+    viewOnly = true;
+    _loadLaudoInForm(laudo);
+  }
+
+  void enableEditingFromView() {
+    viewOnly = false;
+  }
+
+  void _loadLaudoInForm(Laudo laudo) {
     final payload = laudo.payload;
     final paciente = Map<String, dynamic>.from((payload['paciente'] as Map?) ?? <String, dynamic>{});
     final solicitante = Map<String, dynamic>.from((payload['estabelecimento_solicitante'] as Map?) ?? <String, dynamic>{});
@@ -660,6 +719,7 @@ class AppComponent implements OnInit {
 
   void _clearForm() {
     editingId = null;
+    viewOnly = false;
 
     solicitanteCnes = '';
     executanteCnes = '';
