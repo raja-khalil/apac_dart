@@ -1,0 +1,295 @@
+﻿<div class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">SUS</div>
+      <div>
+        <div class="brand-title">APAC/OCI</div>
+        <div class="brand-subtitle">Gestao de Laudos</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button type="button" [class.active]="currentPage == 'dashboard'" (click)="switchPage('dashboard')">Dashboard</button>
+      <button type="button" [class.active]="currentPage == 'novo'" (click)="switchPage('novo')">Novo Laudo</button>
+      <button type="button" [class.active]="currentPage == 'laudos'" (click)="switchPage('laudos')">Laudos</button>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="error-banner" *ngIf="errorMessage != null">{{ errorMessage }}</div>
+
+    <section *ngIf="currentPage == 'dashboard'">
+      <div class="page-head">
+        <div>
+          <h1>Dashboard <span class="online-pill">{{ online ? 'Online' : 'Offline' }}</span></h1>
+          <p>Visao geral dos laudos APAC/OCI</p>
+        </div>
+        <div>
+          <select [(ngModel)]="dashboardUnidadeFilter">
+            <option value="all">Todas as unidades</option>
+            <option *ngFor="let unidade of dashboardUnidades" [value]="unidade.cnes">{{ unidade.nome }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <article class="stat-card">
+          <div class="stat-title">RASCUNHO</div>
+          <div class="stat-number">{{ rascunhoCount }}</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-title">SOLICITADO</div>
+          <div class="stat-number">{{ solicitadoCount }}</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-title">AUTORIZADO</div>
+          <div class="stat-number">{{ autorizadoCount }}</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-title">EXECUTADO</div>
+          <div class="stat-number">{{ executadoCount }}</div>
+        </article>
+      </div>
+
+      <div class="charts-grid">
+        <article class="card chart-card">
+          <h3>Laudos por Mes</h3>
+          <div class="bar-chart">
+            <div class="bar-column" *ngFor="let point of monthlyData">
+              <div class="bar" [style.height.%]="monthlyBarHeight(point.count)"></div>
+              <div class="bar-label">{{ point.label }}</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card chart-card">
+          <h3>Distribuicao por Especialidade</h3>
+          <div class="donut-wrap">
+            <div class="donut" [style.background]="donutStyle"></div>
+            <div class="legend">
+              <div class="legend-item" *ngFor="let category of categoryData">
+                <span class="dot" [style.background]="category.color"></span>
+                <span>{{ category.name }} ({{ category.count }}) - {{ categoryPercent(category.count) }}%</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article class="card recent-card">
+        <h3>Laudos Recentes</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>PACIENTE</th>
+              <th>OCI</th>
+              <th>UNIDADE</th>
+              <th>DATA</th>
+              <th>STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let laudo of recentLaudos">
+              <td>{{ laudo.nomePaciente }}</td>
+              <td>{{ laudo.ociDescricao }}</td>
+              <td>{{ laudo.unidadeSolicitante }}</td>
+              <td>{{ formatDate(laudo.createdAt) }}</td>
+              <td><span [class]="statusClass(laudo.status)">{{ statusLabel(laudo.status) }}</span></td>
+            </tr>
+            <tr *ngIf="recentLaudos.isEmpty">
+              <td colspan="5" class="empty">Nenhum laudo cadastrado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+
+    <section *ngIf="currentPage == 'novo'" class="novo-page">
+      <div class="page-head form-head">
+        <h1>{{ editingId == null ? 'Novo Laudo APAC/OCI' : 'Editar Laudo APAC/OCI' }}</h1>
+        <div class="form-actions-top no-print">
+          <button type="button" class="secondary" (click)="switchPage('laudos')">Cancelar</button>
+          <button type="button" class="secondary" (click)="printLaudo()">Imprimir</button>
+          <button type="button" (click)="submitForm()" [disabled]="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
+        </div>
+      </div>
+      <p class="required-hint">Campos com <span>*</span> sao obrigatorios.</p>
+
+      <div class="form-sheet">
+        <div class="sheet-header">LAUDO MEDICO PARA PROCEDIMENTOS DE ALTA COMPLEXIDADE - APAC</div>
+
+        <div class="section-title">IDENTIFICACAO DO ESTABELECIMENTO DE SAUDE (SOLICITANTE)</div>
+        <div class="grid two">
+          <label class="is-required">
+            1. Nome do Estabelecimento Solicitante
+            <select [(ngModel)]="solicitanteCnes" required>
+              <option value="">Selecione o estabelecimento</option>
+              <option *ngFor="let est of solicitantes" [value]="est.cnes">{{ est.nome }}</option>
+            </select>
+          </label>
+          <label>
+            2. CNES
+            <input type="text" [value]="solicitanteCnes" readonly />
+          </label>
+        </div>
+
+        <div class="section-title">IDENTIFICACAO DO PACIENTE</div>
+        <div class="grid two">
+          <label class="is-required">3. Nome do Paciente <input type="text" [(ngModel)]="pacienteNome" required /></label>
+          <label>4. N Registro <input type="text" [(ngModel)]="pacienteRegistro" /></label>
+        </div>
+        <div class="grid two">
+          <label>Nome da Mae <input type="text" [(ngModel)]="pacienteNomeMae" /></label>
+          <label>
+            Cor do Paciente
+            <select [(ngModel)]="pacienteCor">
+              <option value="">Selecione</option>
+              <option value="Branco">Branco</option>
+              <option value="Preto">Preto</option>
+              <option value="Pardo">Pardo</option>
+              <option value="Amarelo">Amarelo</option>
+              <option value="Indigena">Indigena</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid four">
+          <label>5. Cartao SUS <input type="text" [(ngModel)]="pacienteCartaoSus" /></label>
+          <label class="is-required">CPF <input type="text" [(ngModel)]="pacienteCpf" required /></label>
+          <label class="is-required">6. Data Nasc. <input type="date" [(ngModel)]="pacienteDataNasc" required /></label>
+          <label>
+            7. Sexo
+            <select [(ngModel)]="pacienteSexo">
+              <option value="">Selecione</option>
+              <option value="M">Masc (1)</option>
+              <option value="F">Fem (3)</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid two">
+          <label>8. Nome Responsavel <input type="text" [(ngModel)]="pacienteResponsavel" /></label>
+          <label>9. Telefone <input type="text" [(ngModel)]="pacienteTelefone" /></label>
+        </div>
+        <div class="grid one">
+          <label>10. Endereco <input type="text" [(ngModel)]="pacienteEndereco" /></label>
+        </div>
+        <div class="grid four">
+          <label>11. Municipio <input type="text" [(ngModel)]="pacienteMunicipio" /></label>
+          <label>12. IBGE <input type="text" [(ngModel)]="pacienteIbge" /></label>
+          <label>13. UF <input type="text" [(ngModel)]="pacienteUf" /></label>
+          <label>14. CEP <input type="text" [(ngModel)]="pacienteCep" /></label>
+        </div>
+
+        <div class="section-title">PROCEDIMENTO SOLICITADO</div>
+        <div class="grid three">
+          <label>15. Cod. Procedimento Principal <input type="text" [value]="ociCodigo" readonly /></label>
+          <label class="is-required">
+            16. Descricao Procedimento Principal
+            <select [(ngModel)]="ociCodigo" (change)="handleOciChange()" required>
+              <option value="">Selecione a OCI Principal</option>
+              <option *ngFor="let oci of ocis" [value]="oci.codigo">{{ oci.codigo }} - {{ oci.nome }}</option>
+            </select>
+          </label>
+          <label>17. Qtde <input type="text" value="1" readonly /></label>
+        </div>
+
+        <div class="section-title">PROCEDIMENTO(S) SECUNDARIO(S)</div>
+        <div class="secondary-list" *ngIf="secundariosAtuais.isNotEmpty">
+          <div class="secondary-item" *ngFor="let sec of secundariosAtuais">
+            <label class="checkbox-line">
+              <input type="checkbox" [ngModel]="secundarioSelecionado[sec.codigo] == true" (ngModelChange)="toggleSecundario(sec.codigo, $event)" />
+              <span>{{ sec.codigo }} - {{ sec.nome }}</span>
+            </label>
+            <input type="date" [disabled]="secundarioSelecionado[sec.codigo] != true" [(ngModel)]="secundarioDataExecucao[sec.codigo]" />
+          </div>
+        </div>
+        <div class="empty-tip" *ngIf="secundariosAtuais.isEmpty">Selecione um procedimento principal para ver secundarios.</div>
+
+        <div class="section-title">JUSTIFICATIVA</div>
+        <div class="grid one">
+          <label>33. Descricao Diagnostico <textarea [(ngModel)]="descricaoDiagnostico"></textarea></label>
+        </div>
+        <div class="grid three">
+          <label>34. CID-10 Principal <input type="text" [(ngModel)]="cid10Principal" /></label>
+          <label>35. CID-10 Secundario <input type="text" [(ngModel)]="cid10Secundario" /></label>
+          <label>36. CID-10 Causas Assoc. <input type="text" [(ngModel)]="cid10Causas" /></label>
+        </div>
+        <div class="grid one">
+          <label>37. Observacoes <textarea [(ngModel)]="observacoes"></textarea></label>
+        </div>
+
+        <div class="section-title">SOLICITACAO</div>
+        <div class="grid three">
+          <label>38. Profissional Solicitante <input type="text" [(ngModel)]="profissionalSolicitante" /></label>
+          <label>39. Data Solicitacao <input type="date" [(ngModel)]="dataSolicitacao" /></label>
+          <label>
+            Status
+            <select [(ngModel)]="status">
+              <option *ngFor="let item of statusList" [value]="item">{{ statusLabel(item) }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid two">
+          <label>
+            40. Tipo Documento
+            <select [(ngModel)]="tipoDocumento">
+              <option value="CNS">CNS</option>
+              <option value="CPF">CPF</option>
+            </select>
+          </label>
+          <label>41. Numero Documento <input type="text" [(ngModel)]="documentoSolicitante" /></label>
+        </div>
+
+        <div class="section-title">IDENTIFICACAO DO ESTABELECIMENTO EXECUTANTE</div>
+        <div class="grid two">
+          <label class="is-required">
+            51. Nome Estabelecimento Executante
+            <select [(ngModel)]="executanteCnes" required>
+              <option value="">Selecione o estabelecimento executante</option>
+              <option *ngFor="let est of executantes" [value]="est.cnes">{{ est.nome }}</option>
+            </select>
+          </label>
+          <label>52. CNES <input type="text" [value]="executanteCnes" readonly /></label>
+        </div>
+      </div>
+    </section>
+
+    <section *ngIf="currentPage == 'laudos'">
+      <div class="page-head">
+        <div>
+          <h1>Laudos Emitidos <span class="online-pill">{{ online ? 'Online' : 'Offline' }}</span></h1>
+          <p>{{ listLaudos.length }} laudos encontrados</p>
+        </div>
+        <div class="list-actions">
+          <button type="button" class="secondary" (click)="refreshAll()" [disabled]="loading">Atualizar</button>
+          <button type="button" class="secondary" (click)="clearFilters()">Limpar Filtros</button>
+        </div>
+      </div>
+
+      <div class="card filters-card">
+        <input type="text" [(ngModel)]="listSearch" placeholder="Buscar por nome, CPF ou procedimento..." />
+        <select [(ngModel)]="listStatusFilter">
+          <option value="all">Todos status</option>
+          <option *ngFor="let item of statusList" [value]="item">{{ statusLabel(item) }}</option>
+        </select>
+      </div>
+
+      <div class="laudo-list">
+        <article class="card laudo-item" *ngFor="let laudo of listLaudos">
+          <div class="laudo-main">
+            <h3>{{ laudo.nomePaciente }} <span [class]="statusClass(laudo.status)">{{ statusLabel(laudo.status) }}</span></h3>
+            <p>{{ laudo.ociCodigo }} - {{ laudo.ociDescricao }}</p>
+            <p>{{ laudo.unidadeSolicitante }} - {{ formatDate(laudo.createdAt) }}</p>
+          </div>
+          <div class="laudo-actions">
+            <button type="button" class="secondary" (click)="startEdit(laudo)">Editar</button>
+            <button type="button" class="danger" (click)="removeLaudo(laudo.id)">Excluir</button>
+          </div>
+        </article>
+
+        <article class="card" *ngIf="listLaudos.isEmpty">
+          Nenhum laudo encontrado para os filtros informados.
+        </article>
+      </div>
+    </section>
+  </main>
+</div>
