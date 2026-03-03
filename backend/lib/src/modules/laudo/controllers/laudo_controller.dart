@@ -1,19 +1,19 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
-import 'package:apac_backend/src/modules/laudo/repositories/laudo_repository.dart';
+import 'package:apac_backend/src/modules/laudo/services/laudo_service.dart';
 import 'package:shelf/shelf.dart';
 
 class LaudoController {
-  LaudoController(this._repository);
+  LaudoController(this._service);
 
-  final LaudoRepository _repository;
+  final LaudoService _service;
 
   Future<Response> index(Request request) async {
     final query = request.url.queryParameters['q'];
     final status = request.url.queryParameters['status'];
     final unidade = request.url.queryParameters['unidade_cnes'];
 
-    final laudos = await _repository.listAll(
+    final laudos = await _service.listAll(
       query: query,
       status: status,
       unidadeCnes: unidade,
@@ -28,7 +28,7 @@ class LaudoController {
       return _json({'error': 'ID invalido.'}, status: 400);
     }
 
-    final laudo = await _repository.getById(parsedId);
+    final laudo = await _service.getById(parsedId);
     if (laudo == null) {
       return _json({'error': 'Laudo nao encontrado.'}, status: 404);
     }
@@ -47,7 +47,7 @@ class LaudoController {
       return _json({'error': validationError}, status: 422);
     }
 
-    final created = await _repository.create(payload);
+    final created = await _service.create(payload);
     return _json({'data': created}, status: 201);
   }
 
@@ -67,7 +67,7 @@ class LaudoController {
       return _json({'error': validationError}, status: 422);
     }
 
-    final updated = await _repository.update(parsedId, payload);
+    final updated = await _service.update(parsedId, payload);
     if (updated == null) {
       return _json({'error': 'Laudo nao encontrado.'}, status: 404);
     }
@@ -81,7 +81,7 @@ class LaudoController {
       return _json({'error': 'ID invalido.'}, status: 400);
     }
 
-    final deleted = await _repository.delete(parsedId);
+    final deleted = await _service.delete(parsedId);
     if (!deleted) {
       return _json({'error': 'Laudo nao encontrado.'}, status: 404);
     }

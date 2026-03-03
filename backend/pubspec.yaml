@@ -1,6 +1,7 @@
-﻿name: apac_backend
+name: apac_backend
 description: "Backend for APAC"
 version: 0.1.0
+publish_to: none
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -8,6 +9,9 @@ environment:
 dependencies:
   intl: any
   eloquent: ^3.4.3
+  get_it: ^8.0.3
+  apac_core:
+    path: ../core
   shelf: ^1.4.2
   shelf_router: ^1.1.4
   shelf_static: ^1.1.3
