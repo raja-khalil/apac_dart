@@ -162,7 +162,7 @@
             </select>
           </label>
         </div>
-        <div class="grid four">
+        <div class="grid four docs-grid">
           <label>5. Cartao SUS <input type="text" [ngModel]="pacienteCartaoSus" (ngModelChange)="onPacienteCartaoSusChanged($event)" placeholder="000 0000 0000 0000" /></label>
           <label class="is-required">CPF <input type="text" [ngModel]="pacienteCpf" (ngModelChange)="onPacienteCpfChanged($event)" placeholder="000.000.000-00" required /></label>
           <label class="is-required">6. Data Nasc. <input type="date" [(ngModel)]="pacienteDataNasc" required /></label>
@@ -180,14 +180,14 @@
           <label>9. Telefone <input type="text" [(ngModel)]="pacienteTelefone" /></label>
         </div>
         <div class="grid one">
-          <div class="sub-grid four">
+          <div class="sub-grid four address-grid">
             <label>10. Logradouro <input type="text" [(ngModel)]="pacienteLogradouro" /></label>
             <label>Numero <input type="text" [(ngModel)]="pacienteNumero" /></label>
             <label>Complemento <input type="text" [(ngModel)]="pacienteComplemento" /></label>
             <label>Bairro <input type="text" [(ngModel)]="pacienteBairro" /></label>
           </div>
         </div>
-        <div class="grid four">
+        <div class="grid four city-grid">
           <label>11. Municipio <input type="text" [(ngModel)]="pacienteMunicipio" /></label>
           <label>12. IBGE <input type="text" [(ngModel)]="pacienteIbge" /></label>
           <label>13. UF <input type="text" [(ngModel)]="pacienteUf" /></label>

@@ -489,6 +489,18 @@ button[disabled] {
   grid-template-columns: repeat(4, 1fr);
 }
 
+.grid.four.docs-grid {
+  grid-template-columns: 1.6fr 1.15fr 0.95fr 1fr;
+}
+
+.sub-grid.four.address-grid {
+  grid-template-columns: 2.3fr 0.6fr 1fr 1.3fr;
+}
+
+.grid.four.city-grid {
+  grid-template-columns: 1.8fr 0.8fr 0.5fr 0.9fr;
+}
+
 label {
   border-right: 1px solid var(--c-border);
   color: var(--c-text);
@@ -672,7 +684,10 @@ textarea {
   .grid.two,
   .grid.three,
   .grid.four,
+  .grid.four.docs-grid,
+  .grid.four.city-grid,
   .sub-grid.four,
+  .sub-grid.four.address-grid,
   .filters-card {
     grid-template-columns: 1fr;
   }
@@ -836,6 +851,12 @@ textarea {
     gap: 2px;
     grid-template-columns: 1fr 1.8fr 1fr;
     margin-bottom: 2px;
+  }
+
+  .grid.four.docs-grid,
+  .grid.four.city-grid,
+  .sub-grid.four.address-grid {
+    grid-template-columns: 1fr;
   }
 
   .section-title,
