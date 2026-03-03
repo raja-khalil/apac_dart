@@ -58,11 +58,15 @@ class AppComponent implements OnInit {
   List<Laudo> laudos = <Laudo>[];
 
   String dashboardUnidadeFilter = 'all';
+  String dashboardMonthFilter = 'all';
+  String dashboardDateFrom = '';
+  String dashboardDateTo = '';
   String listSearch = '';
   String listStatusFilter = 'all';
   String listMonthFilter = 'all';
   String listDateFrom = '';
   String listDateTo = '';
+  String solicitanteSearch = '';
   String ociSearch = '';
 
   int? editingId;
@@ -109,7 +113,19 @@ class AppComponent implements OnInit {
   final List<Map<String, String>> procedimentosSecundariosManuais =
       <Map<String, String>>[];
 
-  List<Estabelecimento> get solicitantes => estabelecimentosSolicitantes;
+  List<Estabelecimento> get solicitantes {
+    final list = List<Estabelecimento>.from(estabelecimentosSolicitantes);
+    list.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+    return list;
+  }
+
+  List<Estabelecimento> get solicitantesFiltrados {
+    final query = solicitanteSearch.toLowerCase().trim();
+    if (query.isEmpty) return solicitantes;
+    return solicitantes.where((est) {
+      return est.nome.toLowerCase().contains(query) || est.cnes.contains(query);
+    }).toList();
+  }
   List<Estabelecimento> get executantes => estabelecimentosExecutantes;
   List<OciProcedimento> get ocis => ociProcedimentos;
   List<String> get statusList => statusOptions;
@@ -145,8 +161,52 @@ class AppComponent implements OnInit {
   }
 
   List<Laudo> get dashboardLaudos {
-    if (dashboardUnidadeFilter == 'all') return laudos;
-    return laudos.where((l) => l.unidadeCnes == dashboardUnidadeFilter).toList();
+    final fromDate = dashboardDateFrom.isEmpty ? null : DateTime.tryParse(dashboardDateFrom);
+    final toDate = dashboardDateTo.isEmpty ? null : DateTime.tryParse(dashboardDateTo);
+
+    return laudos.where((l) {
+      if (dashboardUnidadeFilter != 'all' && l.unidadeCnes != dashboardUnidadeFilter) {
+        return false;
+      }
+      final createdAt = _parseCreatedAt(l);
+      if (dashboardMonthFilter != 'all') {
+        if (createdAt == null || _monthKey(createdAt) != dashboardMonthFilter) return false;
+      }
+      if (fromDate != null) {
+        if (createdAt == null || createdAt.isBefore(DateTime(fromDate.year, fromDate.month, fromDate.day))) {
+          return false;
+        }
+      }
+      if (toDate != null) {
+        final endExclusive = DateTime(toDate.year, toDate.month, toDate.day + 1);
+        if (createdAt == null || !createdAt.isBefore(endExclusive)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  String get dashboardUnidadeLabel {
+    if (dashboardUnidadeFilter == 'all') return 'Todas as unidades';
+    for (final unidade in dashboardUnidades) {
+      if (unidade.cnes == dashboardUnidadeFilter) {
+        return '${unidade.nome} (CNES ${unidade.cnes})';
+      }
+    }
+    return 'Unidade selecionada';
+  }
+
+  List<String> get dashboardAvailableMonths {
+    final months = <String>{};
+    for (final laudo in laudos) {
+      final created = _parseCreatedAt(laudo);
+      if (created == null) continue;
+      months.add(_monthKey(created));
+    }
+    final list = months.toList();
+    list.sort((a, b) => b.compareTo(a));
+    return list;
   }
 
   List<Laudo> get recentLaudos {
@@ -802,6 +862,7 @@ class AppComponent implements OnInit {
     viewOnly = false;
 
     solicitanteCnes = '';
+    solicitanteSearch = '';
     executanteCnes = '';
     ociCodigo = '';
     status = 'rascunho';

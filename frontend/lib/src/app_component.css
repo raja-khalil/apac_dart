@@ -147,6 +147,18 @@ p {
   margin-bottom: var(--s-5);
 }
 
+.dashboard-unit-line {
+  color: var(--c-muted);
+  font-size: var(--fz-sm);
+  margin-top: var(--s-2);
+}
+
+.dashboard-filters {
+  display: grid;
+  gap: var(--s-2);
+  grid-template-columns: 240px 170px 160px 160px;
+}
+
 .online-pill {
   background: #e6f7ee;
   border-radius: 999px;
@@ -702,6 +714,11 @@ textarea {
     flex-direction: column;
     gap: var(--s-3);
   }
+
+  .dashboard-filters {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
 }
 
 @media (max-width: 760px) {
@@ -757,6 +774,10 @@ textarea {
     align-items: flex-start;
     flex-direction: column;
     gap: var(--s-3);
+  }
+
+  .dashboard-filters {
+    grid-template-columns: 1fr;
   }
 
   .form-actions-floating {

@@ -30,12 +30,19 @@
         <div>
           <h1>Dashboard <span class="online-pill">{{ online ? 'Online' : 'Offline' }}</span></h1>
           <p>Visao geral dos laudos APAC/OCI</p>
+          <p class="dashboard-unit-line">Unidade visualizada: <strong>{{ dashboardUnidadeLabel }}</strong></p>
         </div>
-        <div>
+        <div class="dashboard-filters">
           <select [(ngModel)]="dashboardUnidadeFilter">
             <option value="all">Todas as unidades</option>
             <option *ngFor="let unidade of dashboardUnidades" [value]="unidade.cnes">{{ unidade.nome }}</option>
           </select>
+          <select [(ngModel)]="dashboardMonthFilter">
+            <option value="all">Todos meses</option>
+            <option *ngFor="let month of dashboardAvailableMonths" [value]="month">{{ monthLabel(month) }}</option>
+          </select>
+          <input type="date" [(ngModel)]="dashboardDateFrom" />
+          <input type="date" [(ngModel)]="dashboardDateTo" />
         </div>
       </div>
 
@@ -131,9 +138,10 @@
         <div class="grid two">
           <label class="is-required">
             1. Nome do Estabelecimento Solicitante
+            <input type="text" [(ngModel)]="solicitanteSearch" placeholder="Buscar por nome ou CNES..." />
             <select [(ngModel)]="solicitanteCnes" required>
               <option value="">Selecione o estabelecimento</option>
-              <option *ngFor="let est of solicitantes" [value]="est.cnes">{{ est.nome }}</option>
+              <option *ngFor="let est of solicitantesFiltrados" [value]="est.cnes">{{ est.nome }}</option>
             </select>
           </label>
           <label>
