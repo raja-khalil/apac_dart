@@ -33,7 +33,7 @@
           <p class="dashboard-unit-line">Unidade visualizada: <strong>{{ dashboardUnidadeLabel }}</strong></p>
         </div>
         <div class="dashboard-filters">
-          <select [(ngModel)]="dashboardUnidadeFilter">
+          <select [ngModel]="dashboardUnidadeFilter" (ngModelChange)="onDashboardUnidadeFilterChanged($event)">
             <option value="all">Todas as unidades</option>
             <option *ngFor="let unidade of dashboardUnidades" [value]="unidade.cnes">{{ unidade.nome }}</option>
           </select>
@@ -138,11 +138,17 @@
         <div class="grid two">
           <label class="is-required">
             1. Nome do Estabelecimento Solicitante
-            <input type="text" [(ngModel)]="solicitanteSearch" placeholder="Buscar por nome ou CNES..." />
-            <select [(ngModel)]="solicitanteCnes" required>
-              <option value="">Selecione o estabelecimento</option>
-              <option *ngFor="let est of solicitantesFiltrados" [value]="est.cnes">{{ est.nome }}</option>
-            </select>
+            <input
+              type="text"
+              [attr.list]="'solicitantes-list'"
+              [ngModel]="solicitanteDisplay"
+              (ngModelChange)="onSolicitanteDisplayChanged($event)"
+              placeholder="Buscar por nome do estabelecimento ou CNES..."
+              required
+            />
+            <datalist id="solicitantes-list">
+              <option *ngFor="let est of solicitantes" [value]="solicitanteOptionLabel(est)"></option>
+            </datalist>
           </label>
           <label>
             2. CNES

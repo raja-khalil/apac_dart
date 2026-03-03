@@ -66,7 +66,7 @@ class AppComponent implements OnInit {
   String listMonthFilter = 'all';
   String listDateFrom = '';
   String listDateTo = '';
-  String solicitanteSearch = '';
+  String solicitanteDisplay = '';
   String ociSearch = '';
 
   int? editingId;
@@ -119,13 +119,6 @@ class AppComponent implements OnInit {
     return list;
   }
 
-  List<Estabelecimento> get solicitantesFiltrados {
-    final query = solicitanteSearch.toLowerCase().trim();
-    if (query.isEmpty) return solicitantes;
-    return solicitantes.where((est) {
-      return est.nome.toLowerCase().contains(query) || est.cnes.contains(query);
-    }).toList();
-  }
   List<Estabelecimento> get executantes => estabelecimentosExecutantes;
   List<OciProcedimento> get ocis => ociProcedimentos;
   List<String> get statusList => statusOptions;
@@ -431,6 +424,7 @@ class AppComponent implements OnInit {
 
     try {
       laudos = await _service.fetchLaudos();
+      _normalizeDashboardUnidadeFilter();
     } catch (error) {
       errorMessage = error.toString();
     } finally {
@@ -444,6 +438,31 @@ class AppComponent implements OnInit {
     if (page == 'novo' && editingId == null) {
       viewOnly = false;
       _clearForm();
+    }
+  }
+
+  void onDashboardUnidadeFilterChanged(dynamic value) {
+    final next = (value?.toString() ?? '').trim();
+    dashboardUnidadeFilter = (next.isEmpty || next == 'all') ? 'all' : next;
+    _normalizeDashboardUnidadeFilter();
+  }
+
+  void onSolicitanteDisplayChanged(dynamic value) {
+    solicitanteDisplay = value?.toString() ?? '';
+    final query = solicitanteDisplay.trim().toLowerCase();
+    if (query.isEmpty) {
+      solicitanteCnes = '';
+      return;
+    }
+
+    for (final est in solicitantes) {
+      if (_solicitanteOptionLabel(est).toLowerCase() == query ||
+          est.nome.toLowerCase() == query ||
+          est.cnes == _digitsOnly(query)) {
+        solicitanteCnes = est.cnes;
+        solicitanteDisplay = _solicitanteOptionLabel(est);
+        return;
+      }
     }
   }
 
@@ -598,6 +617,7 @@ class AppComponent implements OnInit {
 
     editingId = laudo.id;
     solicitanteCnes = (solicitante['cnes'] ?? laudo.unidadeCnes).toString();
+    _syncSolicitanteDisplayByCnes();
     executanteCnes = (executante['cnes'] ?? '').toString();
     ociCodigo = laudo.ociCodigo;
     status = laudo.status;
@@ -857,12 +877,37 @@ class AppComponent implements OnInit {
     return null;
   }
 
+  String solicitanteOptionLabel(Estabelecimento est) {
+    return _solicitanteOptionLabel(est);
+  }
+
+  String _solicitanteOptionLabel(Estabelecimento est) {
+    return '${est.nome} (CNES ${est.cnes})';
+  }
+
+  void _syncSolicitanteDisplayByCnes() {
+    final est = _estabelecimentoByCnes(solicitanteCnes, solicitantes);
+    if (est == null) {
+      solicitanteDisplay = '';
+      return;
+    }
+    solicitanteDisplay = _solicitanteOptionLabel(est);
+  }
+
+  void _normalizeDashboardUnidadeFilter() {
+    if (dashboardUnidadeFilter == 'all') return;
+    for (final unidade in dashboardUnidades) {
+      if (unidade.cnes == dashboardUnidadeFilter) return;
+    }
+    dashboardUnidadeFilter = 'all';
+  }
+
   void _clearForm() {
     editingId = null;
     viewOnly = false;
 
     solicitanteCnes = '';
-    solicitanteSearch = '';
+    solicitanteDisplay = '';
     executanteCnes = '';
     ociCodigo = '';
     status = 'rascunho';
