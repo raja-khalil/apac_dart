@@ -663,6 +663,13 @@ textarea {
 }
 
 @media print {
+  html,
+  body {
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   :host {
     background: #fff;
     color: #000;
@@ -673,6 +680,7 @@ textarea {
   .topbar,
   .connection-banner,
   .error-banner,
+  .form-head,
   .no-print {
     display: none !important;
   }
@@ -692,6 +700,11 @@ textarea {
     max-width: 190mm;
     padding: 0;
     width: 190mm;
+  }
+
+  .novo-page {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .card,
@@ -719,10 +732,10 @@ textarea {
   .form-sheet {
     max-width: 190mm;
     width: 190mm;
-  }
-
-  .novo-page {
-    zoom: var(--print-scale);
+    break-before: avoid-page;
+    page-break-before: avoid;
+    break-after: avoid-page;
+    page-break-after: avoid;
   }
 
   label {
@@ -764,6 +777,12 @@ textarea {
 
   .secondary-item:not(.selected) {
     display: none !important;
+  }
+
+  .section-title,
+  .sheet-header {
+    break-after: avoid-page;
+    page-break-after: avoid;
   }
 
   input,
