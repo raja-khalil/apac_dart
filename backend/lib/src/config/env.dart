@@ -53,14 +53,34 @@ class Database {
       CREATE TABLE IF NOT EXISTS public.laudos (
         id BIGSERIAL PRIMARY KEY,
         nome_paciente TEXT NOT NULL,
+        nome_social TEXT NOT NULL DEFAULT '',
         cpf VARCHAR(14) NOT NULL,
+        cartao_sus VARCHAR(32) NOT NULL DEFAULT '',
         data_nascimento DATE NOT NULL,
+        sexo VARCHAR(20) NOT NULL DEFAULT '',
+        endereco_logradouro TEXT NOT NULL DEFAULT '',
+        endereco_numero VARCHAR(20) NOT NULL DEFAULT '',
+        endereco_complemento TEXT NOT NULL DEFAULT '',
+        endereco_bairro TEXT NOT NULL DEFAULT '',
         oci_codigo VARCHAR(20) NOT NULL DEFAULT '',
         oci_descricao TEXT NOT NULL DEFAULT '',
         unidade_solicitante TEXT NOT NULL DEFAULT '',
         unidade_cnes VARCHAR(10) NOT NULL DEFAULT '',
         status VARCHAR(20) NOT NULL DEFAULT 'rascunho',
         payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
+    await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.laudo_procedimentos_secundarios (
+        id BIGSERIAL PRIMARY KEY,
+        laudo_id BIGINT NOT NULL REFERENCES public.laudos(id) ON DELETE CASCADE,
+        codigo_sigtap VARCHAR(20) NOT NULL,
+        nome_procedimento TEXT NOT NULL,
+        data_execucao DATE NULL,
+        origem VARCHAR(20) NOT NULL DEFAULT 'oci',
         created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
       );
@@ -74,6 +94,27 @@ class Database {
     );
     await _connection.execute(
       "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS data_nascimento DATE NOT NULL DEFAULT CURRENT_DATE",
+    );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS nome_social TEXT NOT NULL DEFAULT ''",
+    );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS cartao_sus VARCHAR(32) NOT NULL DEFAULT ''",
+    );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS sexo VARCHAR(20) NOT NULL DEFAULT ''",
+    );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS endereco_logradouro TEXT NOT NULL DEFAULT ''",
+    );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS endereco_numero VARCHAR(20) NOT NULL DEFAULT ''",
+    );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS endereco_complemento TEXT NOT NULL DEFAULT ''",
+    );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS endereco_bairro TEXT NOT NULL DEFAULT ''",
     );
     await _connection.execute(
       "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS oci_codigo VARCHAR(20) NOT NULL DEFAULT ''",
@@ -111,6 +152,15 @@ class Database {
     );
     await _connection.execute(
       'CREATE INDEX IF NOT EXISTS idx_laudos_cpf ON public.laudos(cpf)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_laudos_cartao_sus ON public.laudos(cartao_sus)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sec_laudo_id ON public.laudo_procedimentos_secundarios(laudo_id)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sec_codigo_sigtap ON public.laudo_procedimentos_secundarios(codigo_sigtap)',
     );
   }
 }

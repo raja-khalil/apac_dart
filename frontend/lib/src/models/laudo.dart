@@ -28,6 +28,13 @@
   final Map<String, dynamic> payload;
 
   factory Laudo.fromJson(Map<String, dynamic> json) {
+    final payload = Map<String, dynamic>.from(
+      (json['payload'] as Map?) ?? <String, dynamic>{},
+    );
+    if (!payload.containsKey('procedimentos_secundarios')) {
+      payload['procedimentos_secundarios'] = json['procedimentos_secundarios'] ?? <dynamic>[];
+    }
+
     return Laudo(
       id: (json['id'] as num).toInt(),
       nomePaciente: (json['nome_paciente'] ?? '').toString(),
@@ -40,9 +47,7 @@
       status: (json['status'] ?? 'rascunho').toString(),
       createdAt: (json['created_at'] ?? '').toString(),
       updatedAt: (json['updated_at'] ?? '').toString(),
-      payload: Map<String, dynamic>.from(
-        (json['payload'] as Map?) ?? <String, dynamic>{},
-      ),
+      payload: payload,
     );
   }
 }

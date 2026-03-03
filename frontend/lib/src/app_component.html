@@ -143,10 +143,13 @@
         <div class="section-title">IDENTIFICACAO DO PACIENTE</div>
         <div class="grid two">
           <label class="is-required">3. Nome do Paciente <input type="text" [(ngModel)]="pacienteNome" required /></label>
-          <label>4. N Registro <input type="text" [(ngModel)]="pacienteRegistro" /></label>
+          <label>Nome Social <input type="text" [(ngModel)]="pacienteNomeSocial" /></label>
         </div>
         <div class="grid two">
+          <label>4. N Registro <input type="text" [(ngModel)]="pacienteRegistro" /></label>
           <label>Nome da Mae <input type="text" [(ngModel)]="pacienteNomeMae" /></label>
+        </div>
+        <div class="grid two">
           <label>
             Cor do Paciente
             <select [(ngModel)]="pacienteCor">
@@ -160,15 +163,15 @@
           </label>
         </div>
         <div class="grid four">
-          <label>5. Cartao SUS <input type="text" [(ngModel)]="pacienteCartaoSus" /></label>
-          <label class="is-required">CPF <input type="text" [(ngModel)]="pacienteCpf" required /></label>
+          <label>5. Cartao SUS <input type="text" [ngModel]="pacienteCartaoSus" (ngModelChange)="onPacienteCartaoSusChanged($event)" placeholder="000 0000 0000 0000" /></label>
+          <label class="is-required">CPF <input type="text" [ngModel]="pacienteCpf" (ngModelChange)="onPacienteCpfChanged($event)" placeholder="000.000.000-00" required /></label>
           <label class="is-required">6. Data Nasc. <input type="date" [(ngModel)]="pacienteDataNasc" required /></label>
           <label>
             7. Sexo
             <select [(ngModel)]="pacienteSexo">
               <option value="">Selecione</option>
-              <option value="M">Masc (1)</option>
-              <option value="F">Fem (3)</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Feminino">Feminino</option>
             </select>
           </label>
         </div>
@@ -177,7 +180,12 @@
           <label>9. Telefone <input type="text" [(ngModel)]="pacienteTelefone" /></label>
         </div>
         <div class="grid one">
-          <label>10. Endereco <input type="text" [(ngModel)]="pacienteEndereco" /></label>
+          <div class="sub-grid four">
+            <label>10. Logradouro <input type="text" [(ngModel)]="pacienteLogradouro" /></label>
+            <label>Numero <input type="text" [(ngModel)]="pacienteNumero" /></label>
+            <label>Complemento <input type="text" [(ngModel)]="pacienteComplemento" /></label>
+            <label>Bairro <input type="text" [(ngModel)]="pacienteBairro" /></label>
+          </div>
         </div>
         <div class="grid four">
           <label>11. Municipio <input type="text" [(ngModel)]="pacienteMunicipio" /></label>
@@ -213,6 +221,18 @@
               <span>{{ sec.codigo }} - {{ sec.nome }}</span>
             </label>
             <input type="date" [disabled]="secundarioSelecionado[sec.codigo] != true" [(ngModel)]="secundarioDataExecucao[sec.codigo]" />
+          </div>
+        </div>
+        <div class="manual-secondary">
+          <div class="manual-secondary-header">
+            <strong>Adicionar outros procedimentos secundarios</strong>
+            <button type="button" class="secondary small no-print" (click)="addProcedimentoSecundarioManual()">+ Adicionar</button>
+          </div>
+          <div class="manual-secondary-row" *ngFor="let manual of procedimentosSecundariosManuais; let i = index">
+            <input type="text" [(ngModel)]="manual['codigo']" placeholder="Codigo SIGTAP" />
+            <input type="text" [(ngModel)]="manual['nome']" placeholder="Nome do procedimento" />
+            <input type="date" [(ngModel)]="manual['data_execucao']" />
+            <button type="button" class="danger small no-print" (click)="removeProcedimentoSecundarioManual(i)">Remover</button>
           </div>
         </div>
         <div class="empty-tip" *ngIf="secundariosAtuais.isEmpty">Selecione um procedimento principal para ver secundarios.</div>

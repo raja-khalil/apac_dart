@@ -58,6 +58,7 @@ class AppComponent implements OnInit {
   String status = 'rascunho';
 
   String pacienteNome = '';
+  String pacienteNomeSocial = '';
   String pacienteRegistro = '';
   String pacienteNomeMae = '';
   String pacienteCor = '';
@@ -66,7 +67,10 @@ class AppComponent implements OnInit {
   String pacienteDataNasc = '';
   String pacienteResponsavel = '';
   String pacienteTelefone = '';
-  String pacienteEndereco = '';
+  String pacienteLogradouro = '';
+  String pacienteNumero = '';
+  String pacienteComplemento = '';
+  String pacienteBairro = '';
   String pacienteMunicipio = 'Rio das Ostras';
   String pacienteIbge = '3304524';
   String pacienteUf = 'RJ';
@@ -86,6 +90,8 @@ class AppComponent implements OnInit {
 
   final Map<String, bool> secundarioSelecionado = <String, bool>{};
   final Map<String, String> secundarioDataExecucao = <String, String>{};
+  final List<Map<String, String>> procedimentosSecundariosManuais =
+      <Map<String, String>>[];
 
   List<Estabelecimento> get solicitantes => estabelecimentosSolicitantes;
   List<Estabelecimento> get executantes => estabelecimentosExecutantes;
@@ -297,15 +303,35 @@ class AppComponent implements OnInit {
             'nome': sec.nome,
             'data_execucao': secundarioDataExecucao[sec.codigo] ?? '',
             'quantidade': 1,
+            'origem': 'oci',
           });
         }
       }
     }
+    for (final manual in procedimentosSecundariosManuais) {
+      final codigo = (manual['codigo'] ?? '').trim();
+      final nome = (manual['nome'] ?? '').trim();
+      if (codigo.isEmpty || nome.isEmpty) continue;
+      secundarios.add({
+        'codigo': codigo,
+        'nome': nome,
+        'data_execucao': (manual['data_execucao'] ?? '').trim(),
+        'quantidade': 1,
+        'origem': 'manual',
+      });
+    }
 
     final payload = <String, dynamic>{
       'nome_paciente': pacienteNome.trim(),
+      'nome_social': pacienteNomeSocial.trim(),
       'cpf': pacienteCpf.trim(),
+      'cartao_sus': pacienteCartaoSus.trim(),
       'data_nascimento': pacienteDataNasc,
+      'sexo': pacienteSexo,
+      'endereco_logradouro': pacienteLogradouro.trim(),
+      'endereco_numero': pacienteNumero.trim(),
+      'endereco_complemento': pacienteComplemento.trim(),
+      'endereco_bairro': pacienteBairro.trim(),
       'oci_codigo': ociCodigo,
       'oci_descricao': oci?.nome ?? '',
       'unidade_solicitante': solicitante?.nome ?? '',
@@ -321,6 +347,7 @@ class AppComponent implements OnInit {
       },
       'paciente': {
         'nome': pacienteNome,
+        'nome_social': pacienteNomeSocial,
         'registro': pacienteRegistro,
         'nome_mae': pacienteNomeMae,
         'cor': pacienteCor,
@@ -330,7 +357,13 @@ class AppComponent implements OnInit {
         'sexo': pacienteSexo,
         'nome_responsavel': pacienteResponsavel,
         'telefone': pacienteTelefone,
-        'endereco': pacienteEndereco,
+        'logradouro': pacienteLogradouro,
+        'numero': pacienteNumero,
+        'complemento': pacienteComplemento,
+        'bairro': pacienteBairro,
+        'endereco':
+            '${pacienteLogradouro.trim()} ${pacienteNumero.trim()} ${pacienteComplemento.trim()} ${pacienteBairro.trim()}'
+                .trim(),
         'municipio': pacienteMunicipio,
         'ibge': pacienteIbge,
         'uf': pacienteUf,
@@ -383,6 +416,7 @@ class AppComponent implements OnInit {
     status = laudo.status;
 
     pacienteNome = (paciente['nome'] ?? laudo.nomePaciente).toString();
+    pacienteNomeSocial = (paciente['nome_social'] ?? '').toString();
     pacienteRegistro = (paciente['registro'] ?? '').toString();
     pacienteNomeMae = (paciente['nome_mae'] ?? '').toString();
     pacienteCor = (paciente['cor'] ?? '').toString();
@@ -391,7 +425,13 @@ class AppComponent implements OnInit {
     pacienteDataNasc = (paciente['data_nascimento'] ?? laudo.dataNascimento).toString();
     pacienteResponsavel = (paciente['nome_responsavel'] ?? '').toString();
     pacienteTelefone = (paciente['telefone'] ?? '').toString();
-    pacienteEndereco = (paciente['endereco'] ?? '').toString();
+    pacienteLogradouro = (paciente['logradouro'] ?? '').toString();
+    pacienteNumero = (paciente['numero'] ?? '').toString();
+    pacienteComplemento = (paciente['complemento'] ?? '').toString();
+    pacienteBairro = (paciente['bairro'] ?? '').toString();
+    if (pacienteLogradouro.isEmpty && (paciente['endereco'] ?? '').toString().isNotEmpty) {
+      pacienteLogradouro = (paciente['endereco'] ?? '').toString();
+    }
     pacienteMunicipio = (paciente['municipio'] ?? 'Rio das Ostras').toString();
     pacienteIbge = (paciente['ibge'] ?? '3304524').toString();
     pacienteUf = (paciente['uf'] ?? 'RJ').toString();
@@ -411,12 +451,22 @@ class AppComponent implements OnInit {
 
     secundarioSelecionado.clear();
     secundarioDataExecucao.clear();
+    procedimentosSecundariosManuais.clear();
     for (final item in secundarios) {
       final sec = Map<String, dynamic>.from(item as Map);
       final codigo = (sec['codigo'] ?? '').toString();
       if (codigo.isEmpty) continue;
-      secundarioSelecionado[codigo] = true;
-      secundarioDataExecucao[codigo] = (sec['data_execucao'] ?? '').toString();
+      final origem = (sec['origem'] ?? 'oci').toString();
+      if (origem == 'manual') {
+        procedimentosSecundariosManuais.add({
+          'codigo': codigo,
+          'nome': (sec['nome'] ?? '').toString(),
+          'data_execucao': (sec['data_execucao'] ?? '').toString(),
+        });
+      } else {
+        secundarioSelecionado[codigo] = true;
+        secundarioDataExecucao[codigo] = (sec['data_execucao'] ?? '').toString();
+      }
     }
 
     currentPage = 'novo';
@@ -445,6 +495,27 @@ class AppComponent implements OnInit {
   void handleOciChange() {
     secundarioSelecionado.clear();
     secundarioDataExecucao.clear();
+  }
+
+  void onPacienteCpfChanged(dynamic value) {
+    pacienteCpf = _formatCpf(value?.toString() ?? '');
+  }
+
+  void onPacienteCartaoSusChanged(dynamic value) {
+    pacienteCartaoSus = _formatCartaoSus(value?.toString() ?? '');
+  }
+
+  void addProcedimentoSecundarioManual() {
+    procedimentosSecundariosManuais.add({
+      'codigo': '',
+      'nome': '',
+      'data_execucao': '',
+    });
+  }
+
+  void removeProcedimentoSecundarioManual(int index) {
+    if (index < 0 || index >= procedimentosSecundariosManuais.length) return;
+    procedimentosSecundariosManuais.removeAt(index);
   }
 
   Future<void> tentarReconectarApi() async {
@@ -554,6 +625,7 @@ class AppComponent implements OnInit {
     status = 'rascunho';
 
     pacienteNome = '';
+    pacienteNomeSocial = '';
     pacienteRegistro = '';
     pacienteNomeMae = '';
     pacienteCor = '';
@@ -562,7 +634,10 @@ class AppComponent implements OnInit {
     pacienteDataNasc = '';
     pacienteResponsavel = '';
     pacienteTelefone = '';
-    pacienteEndereco = '';
+    pacienteLogradouro = '';
+    pacienteNumero = '';
+    pacienteComplemento = '';
+    pacienteBairro = '';
     pacienteMunicipio = 'Rio das Ostras';
     pacienteIbge = '3304524';
     pacienteUf = 'RJ';
@@ -582,6 +657,38 @@ class AppComponent implements OnInit {
 
     secundarioSelecionado.clear();
     secundarioDataExecucao.clear();
+    procedimentosSecundariosManuais.clear();
+  }
+
+  String _digitsOnly(String value) {
+    return value.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  String _formatCpf(String input) {
+    final digits = _digitsOnly(input);
+    final truncated = digits.length > 11 ? digits.substring(0, 11) : digits;
+    final buffer = StringBuffer();
+    for (var i = 0; i < truncated.length; i++) {
+      if (i == 3 || i == 6) buffer.write('.');
+      if (i == 9) buffer.write('-');
+      buffer.write(truncated[i]);
+    }
+    return buffer.toString();
+  }
+
+  String _formatCartaoSus(String input) {
+    final digits = _digitsOnly(input);
+    final truncated = digits.length > 15 ? digits.substring(0, 15) : digits;
+    final groups = <int>[3, 4, 4, 4];
+    var start = 0;
+    final chunks = <String>[];
+    for (final size in groups) {
+      if (start >= truncated.length) break;
+      final end = (start + size > truncated.length) ? truncated.length : start + size;
+      chunks.add(truncated.substring(start, end));
+      start = end;
+    }
+    return chunks.join(' ');
   }
 }
 
