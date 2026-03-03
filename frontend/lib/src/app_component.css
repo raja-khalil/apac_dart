@@ -629,19 +629,13 @@ textarea {
 
   .app-shell {
     background: #fff;
-    height: 297mm;
-    overflow: hidden;
   }
 
   .content {
-    margin: 0;
-    max-height: 277mm;
-    max-width: none;
-    overflow: hidden;
+    margin: 0 auto;
+    max-width: 190mm;
     padding: 0;
-    transform: scale(var(--print-scale));
-    transform-origin: top left;
-    width: calc(190mm / var(--print-scale));
+    width: 190mm;
   }
 
   .card,
@@ -668,8 +662,11 @@ textarea {
 
   .form-sheet {
     max-width: 190mm;
-    min-height: 277mm;
     width: 190mm;
+  }
+
+  .novo-page {
+    zoom: var(--print-scale);
   }
 
   .required-hint {
