@@ -16,6 +16,13 @@
   </header>
 
   <main class="content">
+    <div class="connection-banner" [class.offline]="!online">
+      <div>
+        <strong>Status da API:</strong> {{ online ? 'Conectada' : 'Desconectada' }}
+        <span class="api-endpoint">{{ apiEndpoint }}</span>
+      </div>
+      <button type="button" class="secondary" (click)="tentarReconectarApi()">Tentar novamente</button>
+    </div>
     <div class="error-banner" *ngIf="errorMessage != null">{{ errorMessage }}</div>
 
     <section *ngIf="currentPage == 'dashboard'">
@@ -180,13 +187,19 @@
         </div>
 
         <div class="section-title">PROCEDIMENTO SOLICITADO</div>
+        <div class="oci-helper">
+          <input type="text" [(ngModel)]="ociSearch" placeholder="Buscar OCI por codigo ou descricao..." />
+          <small>Selecione a OCI principal. A lista esta agrupada por especialidade para acelerar o preenchimento.</small>
+        </div>
         <div class="grid three">
           <label>15. Cod. Procedimento Principal <input type="text" [value]="ociCodigo" readonly /></label>
           <label class="is-required">
             16. Descricao Procedimento Principal
             <select [(ngModel)]="ociCodigo" (change)="handleOciChange()" required>
               <option value="">Selecione a OCI Principal</option>
-              <option *ngFor="let oci of ocis" [value]="oci.codigo">{{ oci.codigo }} - {{ oci.nome }}</option>
+              <optgroup *ngFor="let categoria of ociCategorias" [label]="categoria">
+                <option *ngFor="let oci of ocisPorCategoria(categoria)" [value]="oci.codigo">{{ oci.codigo }} - {{ oci.nome }}</option>
+              </optgroup>
             </select>
           </label>
           <label>17. Qtde <input type="text" value="1" readonly /></label>

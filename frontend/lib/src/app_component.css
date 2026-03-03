@@ -341,6 +341,32 @@ th {
   padding: var(--s-3);
 }
 
+.connection-banner {
+  align-items: center;
+  background: #e8f3ff;
+  border: 1px solid #c8ddf5;
+  border-radius: var(--r-3);
+  color: #20476d;
+  display: flex;
+  font-size: var(--fz-sm);
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+  padding: var(--s-3);
+}
+
+.connection-banner.offline {
+  background: #fff3e8;
+  border-color: #ffd2a9;
+  color: #8c4b12;
+}
+
+.api-endpoint {
+  background: rgba(44, 131, 173, 0.12);
+  border-radius: 999px;
+  margin-left: var(--s-2);
+  padding: 2px 8px;
+}
+
 .form-head {
   margin-bottom: var(--s-3);
 }
@@ -408,6 +434,23 @@ button[disabled] {
   line-height: 1.2;
   padding: 7px 10px;
   text-align: center;
+}
+
+.oci-helper {
+  background: #f6f9fd;
+  border-bottom: 1px solid var(--c-border);
+  padding: var(--s-3);
+}
+
+.oci-helper input {
+  margin-bottom: var(--s-2);
+  width: 100%;
+}
+
+.oci-helper small {
+  color: var(--c-muted);
+  display: block;
+  font-size: var(--fz-xs);
 }
 
 .grid {
@@ -581,6 +624,12 @@ textarea {
     flex: 1;
   }
 
+  .connection-banner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+
   h1 {
     font-size: 32px;
   }
@@ -622,6 +671,7 @@ textarea {
   }
 
   .topbar,
+  .connection-banner,
   .error-banner,
   .no-print {
     display: none !important;

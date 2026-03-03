@@ -41,12 +41,14 @@ class AppComponent implements OnInit {
   bool saving = false;
   bool online = false;
   String? errorMessage;
+  String apiEndpoint = 'API nao detectada';
 
   List<Laudo> laudos = <Laudo>[];
 
   String dashboardUnidadeFilter = 'all';
   String listSearch = '';
   String listStatusFilter = 'all';
+  String ociSearch = '';
 
   int? editingId;
 
@@ -89,6 +91,23 @@ class AppComponent implements OnInit {
   List<Estabelecimento> get executantes => estabelecimentosExecutantes;
   List<OciProcedimento> get ocis => ociProcedimentos;
   List<String> get statusList => statusOptions;
+
+  List<String> get ociCategorias {
+    final categories = ocis.map((o) => categoriaPorCodigoOci(o.codigo)).toSet().toList();
+    categories.sort();
+    return categories;
+  }
+
+  List<OciProcedimento> ocisPorCategoria(String categoria) {
+    final filtered = ocis.where((o) => categoriaPorCodigoOci(o.codigo) == categoria);
+    if (ociSearch.trim().isEmpty) {
+      return filtered.toList();
+    }
+    final q = ociSearch.toLowerCase().trim();
+    return filtered
+        .where((o) => o.codigo.toLowerCase().contains(q) || o.nome.toLowerCase().contains(q))
+        .toList();
+  }
 
   OciProcedimento? get ociSelecionada {
     for (final oci in ocis) {
@@ -229,7 +248,10 @@ class AppComponent implements OnInit {
     loading = true;
     errorMessage = null;
 
+    await _service.resolveBaseUrl();
+    apiEndpoint = _service.activeBaseUrl ?? 'API nao detectada';
     online = await _service.checkHealth();
+    apiEndpoint = _service.activeBaseUrl ?? apiEndpoint;
 
     try {
       laudos = await _service.fetchLaudos();
@@ -425,6 +447,10 @@ class AppComponent implements OnInit {
     secundarioDataExecucao.clear();
   }
 
+  Future<void> tentarReconectarApi() async {
+    await refreshAll();
+  }
+
   void clearFilters() {
     listSearch = '';
     listStatusFilter = 'all';
@@ -484,10 +510,7 @@ class AppComponent implements OnInit {
   }
 
   String _categoryForCode(String code) {
-    for (final oci in ocis) {
-      if (oci.codigo == code) return oci.categoria;
-    }
-    return 'Outros';
+    return categoriaPorCodigoOci(code);
   }
 
   String _capitalize(String text) {

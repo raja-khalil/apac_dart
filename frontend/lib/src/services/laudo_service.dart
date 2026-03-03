@@ -11,6 +11,7 @@ class LaudoService {
 
   final http.Client _client;
   String? _resolvedBaseUrl;
+  String? get activeBaseUrl => _resolvedBaseUrl;
 
   Future<bool> checkHealth() async {
     final baseUrl = await _resolveBaseUrl();
@@ -142,6 +143,10 @@ class LaudoService {
     return baseUrl;
   }
 
+  Future<String?> resolveBaseUrl() async {
+    return _resolveBaseUrl();
+  }
+
   Future<String?> _resolveBaseUrl() async {
     if (_resolvedBaseUrl != null) {
       return _resolvedBaseUrl;
@@ -152,11 +157,11 @@ class LaudoService {
     final port = html.window.location.port;
 
     final candidates = <String>[
-      if (port == '8080') 'http://localhost:8081/api',
-      if (port == '8081') 'http://localhost:8081/api',
+      if (port == '8080') 'http://127.0.0.1:8081/api',
+      if (port == '8081') 'http://127.0.0.1:8081/api',
       '$protocol//$host/api',
-      'http://localhost:8081/api',
-      'http://localhost:8080/api',
+      'http://127.0.0.1:8081/api',
+      'http://127.0.0.1:8080/api',
     ];
 
     for (final candidate in candidates.toSet()) {
