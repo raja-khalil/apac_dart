@@ -96,6 +96,9 @@ class Database {
     await _connection.execute(
       "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()",
     );
+    await _connection.execute(
+      "ALTER TABLE public.laudos ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()",
+    );
 
     await _connection.execute(
       'CREATE INDEX IF NOT EXISTS idx_laudos_status ON public.laudos(status)',
