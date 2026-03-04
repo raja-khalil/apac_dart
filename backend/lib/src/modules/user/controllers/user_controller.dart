@@ -14,8 +14,15 @@ class UserController {
     final denied = _forbiddenIfNotAdmin(request);
     if (denied != null) return denied;
 
-    final users = await _service.listAll();
-    return _json({'data': users});
+    try {
+      final users = await _service.listAll();
+      return _json({'data': users});
+    } catch (error) {
+      return _json(
+        {'error': error.toString().replaceFirst('Bad state: ', '')},
+        status: 500,
+      );
+    }
   }
 
   Future<Response> store(Request request) async {
