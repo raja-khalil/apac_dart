@@ -130,6 +130,16 @@ class Database {
     ''');
 
     await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.procedimento_principal_secundario_v2 (
+        principal_id BIGINT NOT NULL REFERENCES public.procedimentos_v2(id) ON DELETE CASCADE,
+        secundario_id BIGINT NOT NULL REFERENCES public.procedimentos_v2(id) ON DELETE CASCADE,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (principal_id, secundario_id),
+        CONSTRAINT proc_princ_sec_diff_chk CHECK (principal_id <> secundario_id)
+      );
+    ''');
+
+    await _connection.execute('''
       CREATE TABLE IF NOT EXISTS public.laudos_v2 (
         id BIGSERIAL PRIMARY KEY,
         paciente_id BIGINT NOT NULL REFERENCES public.pacientes_v2(id),
@@ -258,6 +268,12 @@ class Database {
     );
     await _connection.execute(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_procedimentos_v2_codigo_uq ON public.procedimentos_v2(codigo_sigtap)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_proc_princ_sec_principal_id ON public.procedimento_principal_secundario_v2(principal_id)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_proc_princ_sec_secundario_id ON public.procedimento_principal_secundario_v2(secundario_id)',
     );
     await _connection.execute(
       'CREATE INDEX IF NOT EXISTS idx_laudos_v2_status ON public.laudos_v2(status)',

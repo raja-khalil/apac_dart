@@ -526,12 +526,132 @@
               <td>
                 <div class="list-actions">
                   <button type="button" class="secondary" (click)="editAdminUser(user)">Editar</button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    (click)="activateAdminUser(idAsInt(user['id']))"
+                    [disabled]="isAtivo(user['ativo'])"
+                  >
+                    Ativar
+                  </button>
                   <button type="button" class="danger" (click)="deactivateAdminUserByValue(user['id'])">Desativar</button>
                 </div>
               </td>
             </tr>
             <tr *ngIf="adminUsers.isEmpty">
               <td colspan="5" class="empty">{{ adminLoading ? 'Carregando usuarios...' : 'Nenhum usuario cadastrado.' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+      <div class="page-head">
+        <div>
+          <h1>Catalogos do Novo Laudo</h1>
+          <p>Gerencie listas suspensas de estabelecimentos e procedimentos.</p>
+        </div>
+      </div>
+
+      <article class="card admin-form-card">
+        <h3>Estabelecimentos (Solicitante/Executante)</h3>
+        <div class="admin-form-grid">
+          <label>Nome <input type="text" [(ngModel)]="adminNovoEstNome" /></label>
+          <label>CNES <input type="text" [(ngModel)]="adminNovoEstCnes" /></label>
+          <label>
+            Tipo
+            <select [(ngModel)]="adminNovoEstTipo">
+              <option value="solicitante">Solicitante</option>
+              <option value="executante">Executante</option>
+              <option value="ambos">Ambos</option>
+            </select>
+          </label>
+          <div class="list-actions">
+            <button type="button" (click)="createAdminEstabelecimento()">Adicionar</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>NOME</th>
+              <th>CNES</th>
+              <th>TIPO</th>
+              <th>ACOES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let est of adminCatalogEstabelecimentos">
+              <td>{{ est['nome'] }}</td>
+              <td>{{ est['cnes'] }}</td>
+              <td>{{ est['tipo'] }}</td>
+              <td><button type="button" class="danger" (click)="removeAdminEstabelecimento(idAsInt(est['id']))">Remover</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card admin-form-card">
+        <h3>Procedimentos Secundarios</h3>
+        <div class="admin-form-grid">
+          <label>Codigo SIGTAP <input type="text" [(ngModel)]="adminNovoSecCodigo" /></label>
+          <label>Descricao <input type="text" [(ngModel)]="adminNovoSecDescricao" /></label>
+          <div class="list-actions">
+            <button type="button" (click)="createAdminSecundario()">Adicionar</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>CODIGO</th>
+              <th>DESCRICAO</th>
+              <th>ACOES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let sec of adminCatalogSecundarios">
+              <td>{{ sec['codigo_sigtap'] }}</td>
+              <td>{{ sec['descricao'] }}</td>
+              <td><button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(sec['id']))">Remover</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card admin-form-card">
+        <h3>Procedimentos Principais (OCI)</h3>
+        <div class="admin-form-grid">
+          <label>Codigo SIGTAP <input type="text" [(ngModel)]="adminNovoPriCodigo" /></label>
+          <label>Descricao <input type="text" [(ngModel)]="adminNovoPriDescricao" /></label>
+          <div class="list-actions">
+            <button type="button" (click)="createAdminPrincipal()">Adicionar</button>
+          </div>
+        </div>
+        <div class="admin-roles">
+              <label class="checkbox-line" *ngFor="let sec of adminCatalogSecundarios">
+                <input
+                  type="checkbox"
+                  [checked]="adminNovoPriSecIds.contains(idAsInt(sec['id']))"
+                  (change)="toggleAdminNovoPriSec(idAsInt(sec['id']), $event.target.checked)"
+                />
+                {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}
+              </label>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>CODIGO</th>
+              <th>DESCRICAO</th>
+              <th>SECUNDARIOS</th>
+              <th>ACOES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of adminCatalogPrincipais">
+              <td>{{ p['codigo_sigtap'] }}</td>
+              <td>{{ p['descricao'] }}</td>
+              <td>
+                {{ secundariosCodesText(p['secundarios']) }}
+              </td>
+              <td><button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(p['id']))">Remover</button></td>
             </tr>
           </tbody>
         </table>

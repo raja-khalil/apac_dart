@@ -1,4 +1,8 @@
 import 'package:apac_backend/src/config/env.dart';
+import 'package:apac_backend/src/modules/catalog/controllers/catalog_controller.dart';
+import 'package:apac_backend/src/modules/catalog/repositories/catalog_repository.dart';
+import 'package:apac_backend/src/modules/catalog/repositories/eloquent_catalog_repository.dart';
+import 'package:apac_backend/src/modules/catalog/services/catalog_service.dart';
 import 'package:apac_backend/src/modules/audit/controllers/audit_log_controller.dart';
 import 'package:apac_backend/src/modules/audit/repositories/audit_log_repository.dart';
 import 'package:apac_backend/src/modules/audit/repositories/eloquent_audit_log_repository.dart';
@@ -74,5 +78,15 @@ Future<void> configureDependencies() async {
   );
   di.registerLazySingleton<UserController>(
     () => UserController(di<UserService>(), di<AuthService>()),
+  );
+
+  di.registerLazySingleton<ICatalogRepository>(
+    () => EloquentCatalogRepository(Database.connection),
+  );
+  di.registerLazySingleton<CatalogService>(
+    () => CatalogService(di<ICatalogRepository>()),
+  );
+  di.registerLazySingleton<CatalogController>(
+    () => CatalogController(di<CatalogService>()),
   );
 }

@@ -71,6 +71,12 @@ class AppComponent implements OnInit {
   String apiEndpoint = 'API nao detectada';
 
   List<Laudo> laudos = <Laudo>[];
+  List<Estabelecimento> catalogSolicitantes = <Estabelecimento>[];
+  List<Estabelecimento> catalogExecutantes = <Estabelecimento>[];
+  List<OciProcedimento> catalogOcis = <OciProcedimento>[];
+  List<Map<String, dynamic>> adminCatalogEstabelecimentos = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> adminCatalogPrincipais = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> adminCatalogSecundarios = <Map<String, dynamic>>[];
 
   String dashboardUnidadeFilter = 'all';
   String dashboardMonthFilter = 'all';
@@ -97,6 +103,15 @@ class AppComponent implements OnInit {
   bool adminRoleFaturista = false;
   bool adminRoleOperador = true;
   bool adminRoleGestor = false;
+
+  String adminNovoEstNome = '';
+  String adminNovoEstCnes = '';
+  String adminNovoEstTipo = 'solicitante';
+  String adminNovoSecCodigo = '';
+  String adminNovoSecDescricao = '';
+  String adminNovoPriCodigo = '';
+  String adminNovoPriDescricao = '';
+  final Set<int> adminNovoPriSecIds = <int>{};
   bool adminRoleAdmin = false;
 
   int? editingId;
@@ -144,7 +159,10 @@ class AppComponent implements OnInit {
       <Map<String, String>>[];
 
   List<Estabelecimento> get solicitantes {
-    final list = List<Estabelecimento>.from(estabelecimentosSolicitantes);
+    final source = catalogSolicitantes.isNotEmpty
+        ? catalogSolicitantes
+        : estabelecimentosSolicitantes;
+    final list = List<Estabelecimento>.from(source);
     list.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
     return list;
   }
@@ -157,8 +175,9 @@ class AppComponent implements OnInit {
     }).toList();
   }
 
-  List<Estabelecimento> get executantes => estabelecimentosExecutantes;
-  List<OciProcedimento> get ocis => ociProcedimentos;
+  List<Estabelecimento> get executantes =>
+      catalogExecutantes.isNotEmpty ? catalogExecutantes : estabelecimentosExecutantes;
+  List<OciProcedimento> get ocis => catalogOcis.isNotEmpty ? catalogOcis : ociProcedimentos;
   List<String> get statusList => statusOptions;
   bool get canAccessAdmin => _service.hasRole('admin');
   bool get canWriteLaudo =>
@@ -487,12 +506,54 @@ class AppComponent implements OnInit {
 
     try {
       laudos = await _service.fetchLaudos();
+      await _loadCatalogData();
       _normalizeDashboardUnidadeFilter();
     } catch (error) {
       errorMessage = error.toString();
     } finally {
       loading = false;
     }
+  }
+
+  Future<void> _loadCatalogData() async {
+    final solicitantesRows =
+        await _service.fetchCatalogEstabelecimentos(tipo: 'solicitante');
+    final executantesRows =
+        await _service.fetchCatalogEstabelecimentos(tipo: 'executante');
+    final principaisRows = await _service.fetchCatalogPrincipais();
+
+    catalogSolicitantes = solicitantesRows
+        .map(
+          (e) => Estabelecimento(
+            cnes: (e['cnes'] ?? '').toString(),
+            nome: (e['nome'] ?? '').toString(),
+          ),
+        )
+        .toList();
+    catalogExecutantes = executantesRows
+        .map(
+          (e) => Estabelecimento(
+            cnes: (e['cnes'] ?? '').toString(),
+            nome: (e['nome'] ?? '').toString(),
+          ),
+        )
+        .toList();
+    catalogOcis = principaisRows.map((e) {
+      final secundarios = ((e['secundarios'] as List?) ?? const <dynamic>[])
+          .map((s) => Map<String, dynamic>.from(s as Map))
+          .map(
+            (s) => ProcedimentoSecundario(
+              codigo: (s['codigo_sigtap'] ?? '').toString(),
+              nome: (s['descricao'] ?? '').toString(),
+            ),
+          )
+          .toList();
+      return OciProcedimento(
+        codigo: (e['codigo_sigtap'] ?? '').toString(),
+        nome: (e['descricao'] ?? '').toString(),
+        secundarios: secundarios,
+      );
+    }).toList();
   }
 
   void switchPage(String page) {
@@ -1114,6 +1175,7 @@ class AppComponent implements OnInit {
     adminLoading = true;
     try {
       adminUsers = await _service.fetchUsers();
+      await _loadAdminCatalog();
     } catch (error) {
       errorMessage = _errorText(error);
     } finally {
@@ -1226,6 +1288,116 @@ class AppComponent implements OnInit {
     }
   }
 
+  Future<void> activateAdminUser(int id) async {
+    if (!canAccessAdmin) return;
+    try {
+      await _service.updateUser(id, {'ativo': true});
+      await loadAdminUsers();
+      successMessage = 'Usuario ativado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> _loadAdminCatalog() async {
+    adminCatalogEstabelecimentos = await _service.fetchCatalogEstabelecimentos();
+    adminCatalogPrincipais = await _service.fetchCatalogPrincipais();
+    adminCatalogSecundarios = await _service.fetchCatalogSecundarios();
+  }
+
+  Future<void> createAdminEstabelecimento() async {
+    if (adminNovoEstNome.trim().isEmpty) {
+      errorMessage = 'Informe o nome do estabelecimento.';
+      return;
+    }
+    try {
+      await _service.createCatalogEstabelecimento(
+        nome: adminNovoEstNome.trim(),
+        cnes: adminNovoEstCnes.trim(),
+        tipo: adminNovoEstTipo,
+      );
+      adminNovoEstNome = '';
+      adminNovoEstCnes = '';
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = 'Estabelecimento cadastrado.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> removeAdminEstabelecimento(int id) async {
+    try {
+      await _service.deleteCatalogEstabelecimento(id);
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = 'Estabelecimento removido.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> createAdminSecundario() async {
+    if (adminNovoSecCodigo.trim().isEmpty || adminNovoSecDescricao.trim().isEmpty) {
+      errorMessage = 'Informe codigo e descricao do procedimento secundario.';
+      return;
+    }
+    try {
+      await _service.createCatalogSecundario(
+        codigoSigtap: adminNovoSecCodigo.trim(),
+        descricao: adminNovoSecDescricao.trim(),
+      );
+      adminNovoSecCodigo = '';
+      adminNovoSecDescricao = '';
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = 'Procedimento secundario cadastrado.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  void toggleAdminNovoPriSec(int id, bool checked) {
+    if (checked) {
+      adminNovoPriSecIds.add(id);
+    } else {
+      adminNovoPriSecIds.remove(id);
+    }
+  }
+
+  Future<void> createAdminPrincipal() async {
+    if (adminNovoPriCodigo.trim().isEmpty || adminNovoPriDescricao.trim().isEmpty) {
+      errorMessage = 'Informe codigo e descricao do procedimento principal.';
+      return;
+    }
+    try {
+      await _service.createCatalogPrincipal(
+        codigoSigtap: adminNovoPriCodigo.trim(),
+        descricao: adminNovoPriDescricao.trim(),
+        secundariosIds: adminNovoPriSecIds.toList(),
+      );
+      adminNovoPriCodigo = '';
+      adminNovoPriDescricao = '';
+      adminNovoPriSecIds.clear();
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = 'Procedimento principal cadastrado.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> removeAdminProcedimento(int id) async {
+    try {
+      await _service.deleteCatalogProcedimento(id);
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = 'Procedimento removido.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
   void startViewAndPrint(Laudo laudo) {
     startView(laudo);
     Future<void>.delayed(const Duration(milliseconds: 60), () {
@@ -1275,6 +1447,24 @@ class AppComponent implements OnInit {
         .toList();
     if (roles.isEmpty) return 'sem perfil';
     return roles.join(', ');
+  }
+
+  int idAsInt(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool isAtivo(dynamic value) => value == true || value == 1;
+
+  String secundariosCodesText(dynamic list) {
+    final rows = (list as List?) ?? const <dynamic>[];
+    final codes = <String>[];
+    for (final raw in rows) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final code = (row['codigo_sigtap'] ?? '').toString();
+      if (code.isNotEmpty) codes.add(code);
+    }
+    return codes.join(', ');
   }
 
   String formatDate(String raw) {

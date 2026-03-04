@@ -362,7 +362,7 @@ class EloquentLaudoRepository implements ILaudoRepository {
     } else {
       query = query.where('nome', '=', estabelecimento.nome.trim());
     }
-    query = query.where('tipo', '=', tipo).limit(1);
+    query = query.whereRaw("tipo IN (?, 'ambos')", [tipo]).limit(1);
 
     final existing = await query.get();
     if ((existing as List).isNotEmpty) {

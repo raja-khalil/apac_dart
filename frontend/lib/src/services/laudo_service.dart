@@ -428,6 +428,174 @@ class LaudoService {
     });
   }
 
+  Future<List<Map<String, dynamic>>> fetchCatalogEstabelecimentos({
+    String? tipo,
+  }) async {
+    return _executeWithRecovery((baseUrl) async {
+      final uri = Uri.parse('$baseUrl/catalog/estabelecimentos').replace(
+        queryParameters: (tipo == null || tipo.trim().isEmpty)
+            ? null
+            : <String, String>{'tipo': tipo.trim()},
+      );
+      final response = await _client
+          .get(uri, headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = (payload['data'] as List?) ?? const <dynamic>[];
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchCatalogPrincipais() async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/catalog/procedimentos/principais'), headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = (payload['data'] as List?) ?? const <dynamic>[];
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchCatalogSecundarios() async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/catalog/procedimentos/secundarios'), headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = (payload['data'] as List?) ?? const <dynamic>[];
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    });
+  }
+
+  Future<void> createCatalogEstabelecimento({
+    required String nome,
+    required String cnes,
+    required String tipo,
+  }) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/catalog/estabelecimentos'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'nome': nome, 'cnes': cnes, 'tipo': tipo}),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 201) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
+  Future<void> deleteCatalogEstabelecimento(int id) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .delete(Uri.parse('$baseUrl/catalog/estabelecimentos/$id'), headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
+  Future<void> createCatalogSecundario({
+    required String codigoSigtap,
+    required String descricao,
+  }) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/catalog/procedimentos/secundarios'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'codigo_sigtap': codigoSigtap, 'descricao': descricao}),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 201) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
+  Future<void> createCatalogPrincipal({
+    required String codigoSigtap,
+    required String descricao,
+    required List<int> secundariosIds,
+  }) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/catalog/procedimentos/principais'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({
+              'codigo_sigtap': codigoSigtap,
+              'descricao': descricao,
+              'secundarios_ids': secundariosIds,
+            }),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 201) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
+  Future<void> deleteCatalogProcedimento(int id) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .delete(Uri.parse('$baseUrl/catalog/procedimentos/$id'), headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
   Future<String> _ensureBaseUrl() async {
     final baseUrl = await _resolveBaseUrl();
     if (baseUrl == null) {

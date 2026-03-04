@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:apac_backend/src/config/env.dart';
+import 'package:apac_backend/src/modules/catalog/controllers/catalog_controller.dart';
+import 'package:apac_backend/src/modules/catalog/routes.dart';
 import 'package:apac_backend/src/modules/audit/controllers/audit_log_controller.dart';
 import 'package:apac_backend/src/modules/audit/routes.dart';
 import 'package:apac_backend/src/modules/auth/controllers/auth_controller.dart';
@@ -27,7 +29,8 @@ Future<void> main() async {
     ..mount('/api/', buildAuthRoutes(di<AuthController>()).call)
     ..mount('/api/', buildAuditRoutes(di<AuditLogController>()).call)
     ..mount('/api/', buildLaudoRoutes(di<LaudoController>()).call)
-    ..mount('/api/', buildUserRoutes(di<UserController>()).call);
+    ..mount('/api/', buildUserRoutes(di<UserController>()).call)
+    ..mount('/api/', buildCatalogRoutes(di<CatalogController>()).call);
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
