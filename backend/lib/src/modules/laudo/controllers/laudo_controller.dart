@@ -47,7 +47,11 @@ class LaudoController {
       return _json({'error': validationError}, status: 422);
     }
 
-    final created = await _service.create(payload);
+    final created = await _service.create(
+      payload,
+      actorUserId: _actorUserId(request),
+      actorIp: _actorIp(request),
+    );
     return _json({'data': created}, status: 201);
   }
 
@@ -67,7 +71,12 @@ class LaudoController {
       return _json({'error': validationError}, status: 422);
     }
 
-    final updated = await _service.update(parsedId, payload);
+    final updated = await _service.update(
+      parsedId,
+      payload,
+      actorUserId: _actorUserId(request),
+      actorIp: _actorIp(request),
+    );
     if (updated == null) {
       return _json({'error': 'Laudo nao encontrado.'}, status: 404);
     }
@@ -81,7 +90,11 @@ class LaudoController {
       return _json({'error': 'ID invalido.'}, status: 400);
     }
 
-    final deleted = await _service.delete(parsedId);
+    final deleted = await _service.delete(
+      parsedId,
+      actorUserId: _actorUserId(request),
+      actorIp: _actorIp(request),
+    );
     if (!deleted) {
       return _json({'error': 'Laudo nao encontrado.'}, status: 404);
     }
@@ -116,6 +129,28 @@ class LaudoController {
     }
 
     return null;
+  }
+
+  int? _actorUserId(Request request) {
+    final value = request.context['auth_user_id'];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  String _actorIp(Request request) {
+    final forwarded = request.headers['x-forwarded-for'];
+    if (forwarded != null && forwarded.trim().isNotEmpty) {
+      return forwarded.split(',').first.trim();
+    }
+    final info = request.context['shelf.io.connection_info'];
+    if (info != null) {
+      final remote = (info as dynamic).remoteAddress;
+      if (remote != null) {
+        return remote.address;
+      }
+    }
+    return '';
   }
 
   Response _json(Map<String, dynamic> payload, {int status = 200}) {

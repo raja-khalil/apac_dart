@@ -21,15 +21,41 @@ class LaudoService {
     return _repository.getById(id);
   }
 
-  Future<Map<String, dynamic>> create(Map<String, dynamic> payload) {
-    return _repository.create(payload);
+  Future<Map<String, dynamic>> create(
+    Map<String, dynamic> payload, {
+    int? actorUserId,
+    String? actorIp,
+  }) {
+    return _repository.create(
+      payload,
+      actorUserId: actorUserId,
+      actorIp: actorIp,
+    );
   }
 
-  Future<Map<String, dynamic>?> update(int id, Map<String, dynamic> payload) {
-    return _repository.update(id, payload);
+  Future<Map<String, dynamic>?> update(
+    int id,
+    Map<String, dynamic> payload, {
+    int? actorUserId,
+    String? actorIp,
+  }) {
+    return _repository.update(
+      id,
+      payload,
+      actorUserId: actorUserId,
+      actorIp: actorIp,
+    );
   }
 
-  Future<bool> delete(int id) {
-    return _repository.delete(id);
+  Future<bool> delete(
+    int id, {
+    int? actorUserId,
+    String? actorIp,
+  }) {
+    return _repository.delete(
+      id,
+      actorUserId: actorUserId,
+      actorIp: actorIp,
+    );
   }
 }

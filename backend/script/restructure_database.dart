@@ -7,7 +7,7 @@ Future<void> main() async {
   final manager = Manager();
   manager.addConnection({
     'driver': 'pgsql',
-    'driver_implementation': 'postgres',
+    'driver_implementation': 'postgres_v3',
     'host': EnvConfig.dbHost,
     'port': EnvConfig.dbPort,
     'database': EnvConfig.dbName,
@@ -38,13 +38,14 @@ Future<void> main() async {
     stderr.writeln('Falha ao reestruturar schema: $error');
     stderr.writeln(stackTrace);
     exitCode = 1;
-  } finally {
-    await db.disconnect();
   }
 }
 
 Future<void> _dropTables(Connection db) async {
   await db.execute('''
+    DROP TABLE IF EXISTS public.audit_logs_v2 CASCADE;
+    DROP TABLE IF EXISTS public.sessoes_v2 CASCADE;
+    DROP TABLE IF EXISTS public.usuarios_v2 CASCADE;
     DROP TABLE IF EXISTS public.laudo_procedimentos_secundarios_v2 CASCADE;
     DROP TABLE IF EXISTS public.laudos_v2 CASCADE;
     DROP TABLE IF EXISTS public.procedimentos_v2 CASCADE;
@@ -143,6 +144,44 @@ Future<void> _createTables(Connection db) async {
       CONSTRAINT laudo_proc_sec_v2_origem_chk CHECK (origem IN ('oci', 'manual'))
     );
   ''');
+
+  await db.execute('''
+    CREATE TABLE public.usuarios_v2 (
+      id BIGSERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      senha_hash VARCHAR(255) NOT NULL,
+      senha_salt VARCHAR(255) NOT NULL,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  ''');
+
+  await db.execute('''
+    CREATE TABLE public.sessoes_v2 (
+      id BIGSERIAL PRIMARY KEY,
+      usuario_id BIGINT NOT NULL REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      expires_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+      revoked_at TIMESTAMP WITHOUT TIME ZONE NULL
+    );
+  ''');
+
+  await db.execute('''
+    CREATE TABLE public.audit_logs_v2 (
+      id BIGSERIAL PRIMARY KEY,
+      usuario_id BIGINT REFERENCES public.usuarios_v2(id),
+      acao VARCHAR(20) NOT NULL,
+      entidade VARCHAR(60) NOT NULL,
+      entidade_id BIGINT,
+      dados_antes JSONB NOT NULL DEFAULT '{}'::jsonb,
+      dados_depois JSONB NOT NULL DEFAULT '{}'::jsonb,
+      ip_origem VARCHAR(64) NOT NULL DEFAULT '',
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    );
+  ''');
 }
 
 Future<void> _createIndexes(Connection db) async {
@@ -184,5 +223,26 @@ Future<void> _createIndexes(Connection db) async {
   );
   await db.execute(
     'CREATE INDEX idx_laudo_sec_v2_codigo ON public.laudo_procedimentos_secundarios_v2(codigo_sigtap)',
+  );
+  await db.execute(
+    'CREATE UNIQUE INDEX idx_usuarios_v2_email_uq ON public.usuarios_v2(email)',
+  );
+  await db.execute(
+    'CREATE UNIQUE INDEX idx_sessoes_v2_token_uq ON public.sessoes_v2(token)',
+  );
+  await db.execute(
+    'CREATE INDEX idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)',
+  );
+  await db.execute(
+    'CREATE INDEX idx_sessoes_v2_expires_at ON public.sessoes_v2(expires_at)',
+  );
+  await db.execute(
+    'CREATE INDEX idx_audit_logs_v2_usuario_id ON public.audit_logs_v2(usuario_id)',
+  );
+  await db.execute(
+    'CREATE INDEX idx_audit_logs_v2_entidade ON public.audit_logs_v2(entidade, entidade_id)',
+  );
+  await db.execute(
+    'CREATE INDEX idx_audit_logs_v2_created_at ON public.audit_logs_v2(created_at)',
   );
 }

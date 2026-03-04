@@ -143,6 +143,44 @@ class Database {
       );
     ''');
 
+    await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.usuarios_v2 (
+        id BIGSERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        senha_hash VARCHAR(255) NOT NULL,
+        senha_salt VARCHAR(255) NOT NULL,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
+    await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.sessoes_v2 (
+        id BIGSERIAL PRIMARY KEY,
+        usuario_id BIGINT NOT NULL REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+        token TEXT NOT NULL,
+        expires_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+        revoked_at TIMESTAMP WITHOUT TIME ZONE NULL
+      );
+    ''');
+
+    await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.audit_logs_v2 (
+        id BIGSERIAL PRIMARY KEY,
+        usuario_id BIGINT REFERENCES public.usuarios_v2(id),
+        acao VARCHAR(20) NOT NULL,
+        entidade VARCHAR(60) NOT NULL,
+        entidade_id BIGINT,
+        dados_antes JSONB NOT NULL DEFAULT '{}'::jsonb,
+        dados_depois JSONB NOT NULL DEFAULT '{}'::jsonb,
+        ip_origem VARCHAR(64) NOT NULL DEFAULT '',
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
     await _connection.execute(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_pacientes_v2_cpf_uq ON public.pacientes_v2(cpf) WHERE cpf IS NOT NULL AND cpf <> \'\'',
     );
@@ -178,6 +216,27 @@ class Database {
     );
     await _connection.execute(
       'CREATE INDEX IF NOT EXISTS idx_laudo_sec_v2_laudo_id ON public.laudo_procedimentos_secundarios_v2(laudo_id)',
+    );
+    await _connection.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_v2_email_uq ON public.usuarios_v2(email)',
+    );
+    await _connection.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_sessoes_v2_token_uq ON public.sessoes_v2(token)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sessoes_v2_expires_at ON public.sessoes_v2(expires_at)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_audit_logs_v2_usuario_id ON public.audit_logs_v2(usuario_id)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_audit_logs_v2_entidade ON public.audit_logs_v2(entidade, entidade_id)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_audit_logs_v2_created_at ON public.audit_logs_v2(created_at)',
     );
   }
 }

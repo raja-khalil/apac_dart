@@ -50,7 +50,11 @@ class EloquentLaudoRepository implements ILaudoRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> create(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> create(
+    Map<String, dynamic> payload, {
+    int? actorUserId,
+    String? actorIp,
+  }) async {
     final model = LaudoModel.fromRequestPayload(payload);
     final now = DateTime.now().toUtc().toIso8601String();
 
@@ -90,19 +94,30 @@ class EloquentLaudoRepository implements ILaudoRepository {
     if (created == null) {
       throw StateError('Falha ao carregar laudo criado.');
     }
+
+    await _writeAudit(
+      acao: 'create',
+      entidade: 'laudo',
+      entidadeId: laudoId,
+      dadosAntes: null,
+      dadosDepois: created,
+      actorUserId: actorUserId,
+      actorIp: actorIp,
+      createdAt: now,
+    );
+
     return created;
   }
 
   @override
-  Future<Map<String, dynamic>?> update(int id, Map<String, dynamic> payload) async {
-    final exists = await _db
-        .table('laudos_v2')
-        .select(['id'])
-        .where('id', '=', id)
-        .limit(1)
-        .get();
-
-    if ((exists as List).isEmpty) return null;
+  Future<Map<String, dynamic>?> update(
+    int id,
+    Map<String, dynamic> payload, {
+    int? actorUserId,
+    String? actorIp,
+  }) async {
+    final before = await getById(id);
+    if (before == null) return null;
 
     final model = LaudoModel.fromRequestPayload(payload);
     final now = DateTime.now().toUtc().toIso8601String();
@@ -136,13 +151,49 @@ class EloquentLaudoRepository implements ILaudoRepository {
     });
 
     await _syncSecundarios(id, model.procedimentosSecundarios, now);
-    return getById(id);
+    final after = await getById(id);
+
+    await _writeAudit(
+      acao: 'update',
+      entidade: 'laudo',
+      entidadeId: id,
+      dadosAntes: before,
+      dadosDepois: after,
+      actorUserId: actorUserId,
+      actorIp: actorIp,
+      createdAt: now,
+    );
+
+    return after;
   }
 
   @override
-  Future<bool> delete(int id) async {
+  Future<bool> delete(
+    int id, {
+    int? actorUserId,
+    String? actorIp,
+  }) async {
+    final before = await getById(id);
+    if (before == null) return false;
+
+    final now = DateTime.now().toUtc().toIso8601String();
     final deleted = await _db.table('laudos_v2').where('id', '=', id).delete();
-    return deleted > 0;
+
+    if (deleted > 0) {
+      await _writeAudit(
+        acao: 'delete',
+        entidade: 'laudo',
+        entidadeId: id,
+        dadosAntes: before,
+        dadosDepois: null,
+        actorUserId: actorUserId,
+        actorIp: actorIp,
+        createdAt: now,
+      );
+      return true;
+    }
+
+    return false;
   }
 
   dynamic _baseSelectBuilder() {
@@ -365,6 +416,28 @@ class EloquentLaudoRepository implements ILaudoRepository {
     }, 'id');
 
     return (insertedId as num).toInt();
+  }
+
+  Future<void> _writeAudit({
+    required String acao,
+    required String entidade,
+    required int entidadeId,
+    required Map<String, dynamic>? dadosAntes,
+    required Map<String, dynamic>? dadosDepois,
+    required int? actorUserId,
+    required String? actorIp,
+    required String createdAt,
+  }) async {
+    await _db.table('audit_logs_v2').insert({
+      'usuario_id': actorUserId,
+      'acao': acao,
+      'entidade': entidade,
+      'entidade_id': entidadeId,
+      'dados_antes': jsonEncode(dadosAntes ?? <String, dynamic>{}),
+      'dados_depois': jsonEncode(dadosDepois ?? <String, dynamic>{}),
+      'ip_origem': (actorIp ?? '').trim(),
+      'created_at': createdAt,
+    });
   }
 
   Map<String, dynamic> _normalizeRow(
