@@ -43,6 +43,16 @@ class LaudoService {
   String? get activeBaseUrl => _resolvedBaseUrl;
   bool get isAuthenticated => _accessToken != null && _accessToken!.isNotEmpty;
   Map<String, dynamic>? get currentUser => _currentUser;
+  List<String> get currentRoles => ((currentUser?['roles'] as List?) ?? const <dynamic>[])
+      .map((e) => e.toString().trim().toLowerCase())
+      .where((e) => e.isNotEmpty)
+      .toList();
+
+  bool hasRole(String role) {
+    final normalized = role.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    return currentRoles.contains(normalized);
+  }
 
   void setUnauthorizedHandler(void Function()? handler) {
     _onUnauthorized = handler;
@@ -293,6 +303,89 @@ class LaudoService {
     } catch (e) {
       throw Exception('Nao foi possivel remover. Verifique se o backend esta ativo. $e');
     }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUsers() async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .get(Uri.parse('$baseUrl/users'), headers: _headers())
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = (payload['data'] as List?) ?? const <dynamic>[];
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    });
+  }
+
+  Future<Map<String, dynamic>> createUser(Map<String, dynamic> body) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/users'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 201) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+    });
+  }
+
+  Future<Map<String, dynamic>> updateUser(int id, Map<String, dynamic> body) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .put(
+            Uri.parse('$baseUrl/users/$id'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+    });
+  }
+
+  Future<void> deactivateUser(int id) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .delete(Uri.parse('$baseUrl/users/$id'), headers: _headers())
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
   }
 
   Future<String> _ensureBaseUrl() async {

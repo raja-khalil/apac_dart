@@ -9,19 +9,32 @@ class AuthController {
   final AuthService _service;
 
   Future<Response> register(Request request) async {
+    final roles = (request.context['auth_roles'] as List?)?.map((e) => e.toString()).toList() ?? <String>[];
+    if (!roles.contains('admin')) {
+      return _json({'error': 'Acesso negado. Perfil admin obrigatorio.'}, status: 403);
+    }
+
     final payload = await _readPayload(request);
     if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
 
     final nome = (payload['nome'] ?? '').toString().trim();
     final email = (payload['email'] ?? '').toString().trim();
     final senha = (payload['senha'] ?? '').toString();
+    final perfis = ((payload['perfis'] as List?) ?? const <dynamic>[])
+        .map((e) => e.toString())
+        .toList();
 
     if (nome.isEmpty || email.isEmpty || senha.length < 6) {
       return _json({'error': 'Informe nome, email e senha (min. 6).'}, status: 422);
     }
 
     try {
-      final user = await _service.register(nome: nome, email: email, senha: senha);
+      final user = await _service.register(
+        nome: nome,
+        email: email,
+        senha: senha,
+        perfis: perfis.isEmpty ? const <String>['operador'] : perfis,
+      );
       return _json({'data': user}, status: 201);
     } catch (error) {
       return _json({'error': error.toString().replaceFirst('Bad state: ', '')}, status: 422);

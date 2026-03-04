@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:eloquent/eloquent.dart';
 
 class EnvConfig {
@@ -148,11 +150,37 @@ class Database {
         id BIGSERIAL PRIMARY KEY,
         nome TEXT NOT NULL,
         email VARCHAR(255) NOT NULL,
-        senha_hash VARCHAR(255) NOT NULL,
-        senha_salt VARCHAR(255) NOT NULL,
         ativo BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
+    await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.usuario_credenciais_v2 (
+        usuario_id BIGINT PRIMARY KEY REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+        senha_hash VARCHAR(255) NOT NULL,
+        senha_salt VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
+    await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.perfis_v2 (
+        id BIGSERIAL PRIMARY KEY,
+        codigo VARCHAR(40) NOT NULL,
+        nome VARCHAR(120) NOT NULL,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
+    await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.usuario_perfis_v2 (
+        usuario_id BIGINT NOT NULL REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+        perfil_id BIGINT NOT NULL REFERENCES public.perfis_v2(id) ON DELETE CASCADE,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (usuario_id, perfil_id)
       );
     ''');
 
@@ -221,6 +249,9 @@ class Database {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_v2_email_uq ON public.usuarios_v2(email)',
     );
     await _connection.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_perfis_v2_codigo_uq ON public.perfis_v2(codigo)',
+    );
+    await _connection.execute(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_sessoes_v2_token_uq ON public.sessoes_v2(token)',
     );
     await _connection.execute(
@@ -238,5 +269,93 @@ class Database {
     await _connection.execute(
       'CREATE INDEX IF NOT EXISTS idx_audit_logs_v2_created_at ON public.audit_logs_v2(created_at)',
     );
+
+    await _seedProfilesAndAdmin();
+  }
+
+  static Future<void> _seedProfilesAndAdmin() async {
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    final profiles = <Map<String, String>>[
+      {'codigo': 'admin', 'nome': 'Administrador'},
+      {'codigo': 'faturista', 'nome': 'Faturista'},
+      {'codigo': 'operador', 'nome': 'Operador'},
+      {'codigo': 'gestor', 'nome': 'Gestor'},
+    ];
+
+    for (final profile in profiles) {
+      await _connection.execute('''
+        INSERT INTO public.perfis_v2 (codigo, nome, created_at)
+        SELECT '${profile['codigo']}', '${profile['nome']}', '$now'
+        WHERE NOT EXISTS (
+          SELECT 1 FROM public.perfis_v2 WHERE codigo = '${profile['codigo']}'
+        );
+      ''');
+    }
+
+    final adminEmail = 'admin@apac.local';
+    final adminRows = await _connection
+        .table('usuarios_v2')
+        .select(['id'])
+        .where('email', '=', adminEmail)
+        .limit(1)
+        .get();
+
+    int adminId;
+    if ((adminRows as List).isEmpty) {
+      final inserted = await _connection.table('usuarios_v2').insertGetId({
+        'nome': 'Administrador',
+        'email': adminEmail,
+        'ativo': true,
+        'created_at': now,
+        'updated_at': now,
+      }, 'id');
+      adminId = (inserted as num).toInt();
+    } else {
+      adminId = ((adminRows.first as Map)['id'] as num).toInt();
+    }
+
+    const adminSalt = 'apac_admin_seed_salt';
+    final adminHash = sha256.convert(utf8.encode('$adminSalt:ostras123')).toString();
+    final credRows = await _connection
+        .table('usuario_credenciais_v2')
+        .select(['usuario_id'])
+        .where('usuario_id', '=', adminId)
+        .limit(1)
+        .get();
+
+    if ((credRows as List).isEmpty) {
+      await _connection.table('usuario_credenciais_v2').insert({
+        'usuario_id': adminId,
+        'senha_hash': adminHash,
+        'senha_salt': adminSalt,
+        'created_at': now,
+        'updated_at': now,
+      });
+    }
+
+    final perfilRows = await _connection
+        .table('perfis_v2')
+        .select(['id'])
+        .where('codigo', '=', 'admin')
+        .limit(1)
+        .get();
+    if ((perfilRows as List).isEmpty) return;
+    final adminProfileId = ((perfilRows.first as Map)['id'] as num).toInt();
+
+    final linkRows = await _connection
+        .table('usuario_perfis_v2')
+        .select(['usuario_id'])
+        .where('usuario_id', '=', adminId)
+        .where('perfil_id', '=', adminProfileId)
+        .limit(1)
+        .get();
+    if ((linkRows as List).isEmpty) {
+      await _connection.table('usuario_perfis_v2').insert({
+        'usuario_id': adminId,
+        'perfil_id': adminProfileId,
+        'created_at': now,
+      });
+    }
   }
 }

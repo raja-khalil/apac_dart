@@ -45,7 +45,6 @@ Middleware authMiddleware(AuthService authService) {
   const publicPaths = <String>{
     '/api/health',
     '/api/auth/login',
-    '/api/auth/register',
   };
 
   return (innerHandler) {
@@ -79,6 +78,7 @@ Middleware authMiddleware(AuthService authService) {
           ...request.context,
           'auth_user': user,
           'auth_user_id': user['id'],
+          'auth_roles': user['roles'],
         }),
       );
     };

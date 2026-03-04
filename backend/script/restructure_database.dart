@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:apac_backend/src/config/env.dart';
+import 'package:crypto/crypto.dart';
 import 'package:eloquent/eloquent.dart';
 
 Future<void> main() async {
@@ -22,15 +24,14 @@ Future<void> main() async {
   final db = await manager.connection();
 
   stdout.writeln('Reestruturando schema relacional (sem migracao de dados)...');
-  stdout.writeln(
-    'Conexao: ${EnvConfig.dbHost}:${EnvConfig.dbPort}/${EnvConfig.dbName}',
-  );
+  stdout.writeln('Conexao: ${EnvConfig.dbHost}:${EnvConfig.dbPort}/${EnvConfig.dbName}');
 
   try {
     await db.execute('BEGIN');
     await _dropTables(db);
     await _createTables(db);
     await _createIndexes(db);
+    await _seedProfilesAndAdmin(db);
     await db.execute('COMMIT');
     stdout.writeln('Schema relacional criado com sucesso.');
   } catch (error, stackTrace) {
@@ -44,7 +45,10 @@ Future<void> main() async {
 Future<void> _dropTables(Connection db) async {
   await db.execute('''
     DROP TABLE IF EXISTS public.audit_logs_v2 CASCADE;
+    DROP TABLE IF EXISTS public.usuario_perfis_v2 CASCADE;
+    DROP TABLE IF EXISTS public.perfis_v2 CASCADE;
     DROP TABLE IF EXISTS public.sessoes_v2 CASCADE;
+    DROP TABLE IF EXISTS public.usuario_credenciais_v2 CASCADE;
     DROP TABLE IF EXISTS public.usuarios_v2 CASCADE;
     DROP TABLE IF EXISTS public.laudo_procedimentos_secundarios_v2 CASCADE;
     DROP TABLE IF EXISTS public.laudos_v2 CASCADE;
@@ -78,9 +82,7 @@ Future<void> _createTables(Connection db) async {
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
     );
-  ''');
 
-  await db.execute('''
     CREATE TABLE public.estabelecimentos_v2 (
       id BIGSERIAL PRIMARY KEY,
       cnes VARCHAR(10),
@@ -90,9 +92,7 @@ Future<void> _createTables(Connection db) async {
       updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       CONSTRAINT estabelecimentos_v2_tipo_chk CHECK (tipo IN ('solicitante', 'executante', 'ambos'))
     );
-  ''');
 
-  await db.execute('''
     CREATE TABLE public.procedimentos_v2 (
       id BIGSERIAL PRIMARY KEY,
       codigo_sigtap VARCHAR(20) NOT NULL,
@@ -103,9 +103,7 @@ Future<void> _createTables(Connection db) async {
       updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       CONSTRAINT procedimentos_v2_tipo_chk CHECK (tipo IN ('principal', 'secundario'))
     );
-  ''');
 
-  await db.execute('''
     CREATE TABLE public.laudos_v2 (
       id BIGSERIAL PRIMARY KEY,
       paciente_id BIGINT NOT NULL REFERENCES public.pacientes_v2(id),
@@ -124,13 +122,9 @@ Future<void> _createTables(Connection db) async {
       data_solicitacao DATE,
       payload JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
-      CONSTRAINT laudos_v2_status_chk CHECK (status IN ('rascunho', 'solicitado', 'autorizado', 'executado')),
-      CONSTRAINT laudos_v2_tipo_documento_chk CHECK (tipo_documento IN ('CPF', 'CNS'))
+      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
     );
-  ''');
 
-  await db.execute('''
     CREATE TABLE public.laudo_procedimentos_secundarios_v2 (
       id BIGSERIAL PRIMARY KEY,
       laudo_id BIGINT NOT NULL REFERENCES public.laudos_v2(id) ON DELETE CASCADE,
@@ -140,25 +134,40 @@ Future<void> _createTables(Connection db) async {
       data_execucao DATE,
       origem VARCHAR(20) NOT NULL DEFAULT 'oci',
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
-      CONSTRAINT laudo_proc_sec_v2_origem_chk CHECK (origem IN ('oci', 'manual'))
+      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
     );
-  ''');
 
-  await db.execute('''
     CREATE TABLE public.usuarios_v2 (
       id BIGSERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
       email VARCHAR(255) NOT NULL,
-      senha_hash VARCHAR(255) NOT NULL,
-      senha_salt VARCHAR(255) NOT NULL,
       ativo BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
     );
-  ''');
 
-  await db.execute('''
+    CREATE TABLE public.usuario_credenciais_v2 (
+      usuario_id BIGINT PRIMARY KEY REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+      senha_hash VARCHAR(255) NOT NULL,
+      senha_salt VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE public.perfis_v2 (
+      id BIGSERIAL PRIMARY KEY,
+      codigo VARCHAR(40) NOT NULL,
+      nome VARCHAR(120) NOT NULL,
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE public.usuario_perfis_v2 (
+      usuario_id BIGINT NOT NULL REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+      perfil_id BIGINT NOT NULL REFERENCES public.perfis_v2(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (usuario_id, perfil_id)
+    );
+
     CREATE TABLE public.sessoes_v2 (
       id BIGSERIAL PRIMARY KEY,
       usuario_id BIGINT NOT NULL REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
@@ -167,9 +176,7 @@ Future<void> _createTables(Connection db) async {
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       revoked_at TIMESTAMP WITHOUT TIME ZONE NULL
     );
-  ''');
 
-  await db.execute('''
     CREATE TABLE public.audit_logs_v2 (
       id BIGSERIAL PRIMARY KEY,
       usuario_id BIGINT REFERENCES public.usuarios_v2(id),
@@ -185,64 +192,77 @@ Future<void> _createTables(Connection db) async {
 }
 
 Future<void> _createIndexes(Connection db) async {
-  await db.execute(
-    'CREATE UNIQUE INDEX idx_pacientes_v2_cpf_uq ON public.pacientes_v2(cpf) WHERE cpf IS NOT NULL AND cpf <> \'\'',
-  );
-  await db.execute(
-    'CREATE INDEX idx_pacientes_v2_nome ON public.pacientes_v2(nome)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_estabelecimentos_v2_nome ON public.estabelecimentos_v2(nome)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_estabelecimentos_v2_cnes ON public.estabelecimentos_v2(cnes)',
-  );
-  await db.execute(
-    'CREATE UNIQUE INDEX idx_procedimentos_v2_codigo_uq ON public.procedimentos_v2(codigo_sigtap)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudos_v2_status ON public.laudos_v2(status)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudos_v2_created_at ON public.laudos_v2(created_at)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudos_v2_paciente_id ON public.laudos_v2(paciente_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudos_v2_solicitante_id ON public.laudos_v2(estabelecimento_solicitante_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudos_v2_executante_id ON public.laudos_v2(estabelecimento_executante_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudos_v2_proc_principal_id ON public.laudos_v2(procedimento_principal_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudo_sec_v2_laudo_id ON public.laudo_procedimentos_secundarios_v2(laudo_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_laudo_sec_v2_codigo ON public.laudo_procedimentos_secundarios_v2(codigo_sigtap)',
-  );
-  await db.execute(
-    'CREATE UNIQUE INDEX idx_usuarios_v2_email_uq ON public.usuarios_v2(email)',
-  );
-  await db.execute(
-    'CREATE UNIQUE INDEX idx_sessoes_v2_token_uq ON public.sessoes_v2(token)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_sessoes_v2_expires_at ON public.sessoes_v2(expires_at)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_audit_logs_v2_usuario_id ON public.audit_logs_v2(usuario_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_audit_logs_v2_entidade ON public.audit_logs_v2(entidade, entidade_id)',
-  );
-  await db.execute(
-    'CREATE INDEX idx_audit_logs_v2_created_at ON public.audit_logs_v2(created_at)',
-  );
+  await db.execute('CREATE UNIQUE INDEX idx_pacientes_v2_cpf_uq ON public.pacientes_v2(cpf) WHERE cpf IS NOT NULL AND cpf <> \'\'');
+  await db.execute('CREATE INDEX idx_pacientes_v2_nome ON public.pacientes_v2(nome)');
+  await db.execute('CREATE INDEX idx_estabelecimentos_v2_nome ON public.estabelecimentos_v2(nome)');
+  await db.execute('CREATE INDEX idx_estabelecimentos_v2_cnes ON public.estabelecimentos_v2(cnes)');
+  await db.execute('CREATE UNIQUE INDEX idx_procedimentos_v2_codigo_uq ON public.procedimentos_v2(codigo_sigtap)');
+  await db.execute('CREATE INDEX idx_laudos_v2_status ON public.laudos_v2(status)');
+  await db.execute('CREATE INDEX idx_laudos_v2_created_at ON public.laudos_v2(created_at)');
+  await db.execute('CREATE INDEX idx_laudos_v2_paciente_id ON public.laudos_v2(paciente_id)');
+  await db.execute('CREATE INDEX idx_laudos_v2_solicitante_id ON public.laudos_v2(estabelecimento_solicitante_id)');
+  await db.execute('CREATE INDEX idx_laudos_v2_executante_id ON public.laudos_v2(estabelecimento_executante_id)');
+  await db.execute('CREATE INDEX idx_laudos_v2_proc_principal_id ON public.laudos_v2(procedimento_principal_id)');
+  await db.execute('CREATE INDEX idx_laudo_sec_v2_laudo_id ON public.laudo_procedimentos_secundarios_v2(laudo_id)');
+  await db.execute('CREATE INDEX idx_laudo_sec_v2_codigo ON public.laudo_procedimentos_secundarios_v2(codigo_sigtap)');
+  await db.execute('CREATE UNIQUE INDEX idx_usuarios_v2_email_uq ON public.usuarios_v2(email)');
+  await db.execute('CREATE UNIQUE INDEX idx_perfis_v2_codigo_uq ON public.perfis_v2(codigo)');
+  await db.execute('CREATE UNIQUE INDEX idx_sessoes_v2_token_uq ON public.sessoes_v2(token)');
+  await db.execute('CREATE INDEX idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)');
+  await db.execute('CREATE INDEX idx_sessoes_v2_expires_at ON public.sessoes_v2(expires_at)');
+  await db.execute('CREATE INDEX idx_audit_logs_v2_usuario_id ON public.audit_logs_v2(usuario_id)');
+  await db.execute('CREATE INDEX idx_audit_logs_v2_entidade ON public.audit_logs_v2(entidade, entidade_id)');
+  await db.execute('CREATE INDEX idx_audit_logs_v2_created_at ON public.audit_logs_v2(created_at)');
+}
+
+Future<void> _seedProfilesAndAdmin(Connection db) async {
+  final now = DateTime.now().toUtc().toIso8601String();
+
+  final profiles = const <Map<String, String>>[
+    {'codigo': 'admin', 'nome': 'Administrador'},
+    {'codigo': 'faturista', 'nome': 'Faturista'},
+    {'codigo': 'operador', 'nome': 'Operador'},
+    {'codigo': 'gestor', 'nome': 'Gestor'},
+  ];
+
+  for (final profile in profiles) {
+    await db.table('perfis_v2').insert({
+      'codigo': profile['codigo'],
+      'nome': profile['nome'],
+      'created_at': now,
+    });
+  }
+
+  final adminId = await db.table('usuarios_v2').insertGetId({
+    'nome': 'Administrador',
+    'email': 'admin@apac.local',
+    'ativo': true,
+    'created_at': now,
+    'updated_at': now,
+  }, 'id');
+
+  const salt = 'apac_admin_seed_salt';
+  final hash = sha256.convert(utf8.encode('$salt:ostras123')).toString();
+
+  await db.table('usuario_credenciais_v2').insert({
+    'usuario_id': (adminId as num).toInt(),
+    'senha_hash': hash,
+    'senha_salt': salt,
+    'created_at': now,
+    'updated_at': now,
+  });
+
+  final perfilAdmin = await db
+      .table('perfis_v2')
+      .select(['id'])
+      .where('codigo', '=', 'admin')
+      .limit(1)
+      .get();
+  final adminProfileId = ((perfilAdmin as List).first as Map)['id'];
+
+  await db.table('usuario_perfis_v2').insert({
+    'usuario_id': adminId,
+    'perfil_id': (adminProfileId as num).toInt(),
+    'created_at': now,
+  });
 }

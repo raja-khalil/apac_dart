@@ -1,4 +1,4 @@
-﻿<div class="app-shell">
+<div class="app-shell" [class.batch-print-mode]="batchPrintMode">
   <header class="topbar">
     <div class="brand">
       <div class="brand-logo">SUS</div>
@@ -12,6 +12,7 @@
       <button type="button" [class.active]="currentPage == 'dashboard'" (click)="switchPage('dashboard')">Dashboard</button>
       <button type="button" [class.active]="currentPage == 'novo'" (click)="switchPage('novo')">Novo Laudo</button>
       <button type="button" [class.active]="currentPage == 'laudos'" (click)="switchPage('laudos')">Laudos</button>
+      <button type="button" *ngIf="canAccessAdmin" [class.active]="currentPage == 'admin'" (click)="switchPage('admin')">Admin</button>
       <button type="button" class="secondary" (click)="logout()">Sair</button>
     </nav>
   </header>
@@ -28,22 +29,16 @@
 
     <section *ngIf="!isAuthenticated" class="auth-page">
       <article class="card auth-card">
-        <h1>{{ registerMode ? 'Criar Conta' : 'Acesso ao Sistema' }}</h1>
-        <p>{{ registerMode ? 'Cadastre um usuario para acessar o sistema.' : 'Entre com email e senha para continuar.' }}</p>
+        <h1>Acesso ao Sistema</h1>
+        <p>Entre com email e senha para continuar.</p>
 
         <div class="error-banner" *ngIf="authMessage != null">{{ authMessage }}</div>
 
-        <label *ngIf="registerMode">Nome <input type="text" [(ngModel)]="loginNome" placeholder="Nome completo" /></label>
         <label>Email <input type="email" [(ngModel)]="loginEmail" placeholder="usuario@dominio.com" /></label>
         <label>Senha <input type="password" [(ngModel)]="loginSenha" placeholder="Senha" /></label>
 
         <div class="auth-actions">
-          <button type="button" (click)="login()" [disabled]="loggingIn || registering">
-            {{ registerMode ? (registering ? 'Cadastrando...' : 'Cadastrar e Entrar') : (loggingIn ? 'Entrando...' : 'Entrar') }}
-          </button>
-          <button type="button" class="secondary" (click)="toggleRegisterMode()">
-            {{ registerMode ? 'Voltar para Login' : 'Criar Conta' }}
-          </button>
+          <button type="button" (click)="login()" [disabled]="loggingIn">{{ loggingIn ? 'Entrando...' : 'Entrar' }}</button>
         </div>
       </article>
     </section>
@@ -147,6 +142,7 @@
         <h1>{{ novoTitulo }}</h1>
       </div>
       <p class="required-hint">Campos com <span>*</span> sao obrigatorios.</p>
+      <p class="required-hint" *ngIf="!canWriteLaudo">Seu perfil permite consulta e impressao. Para editar, use perfil operador, gestor ou admin.</p>
 
       <fieldset class="form-mode-shell" [disabled]="viewOnly">
       <div class="form-sheet">
@@ -318,8 +314,8 @@
         <div class="form-actions-top form-actions-floating">
           <button type="button" class="secondary" (click)="switchPage('laudos')">Cancelar</button>
           <button type="button" class="secondary" (click)="printLaudo()">Imprimir</button>
-          <button type="button" class="secondary" *ngIf="viewOnly" (click)="enableEditingFromView()">Editar</button>
-          <button type="button" *ngIf="!viewOnly" (click)="submitForm()" [disabled]="saving">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
+          <button type="button" class="secondary" *ngIf="viewOnly" (click)="enableEditingFromView()" [disabled]="!canWriteLaudo">Editar</button>
+          <button type="button" *ngIf="!viewOnly" (click)="submitForm()" [disabled]="saving || !canWriteLaudo">{{ saving ? 'Salvando...' : 'Salvar' }}</button>
         </div>
       </div>
     </section>
@@ -333,6 +329,7 @@
         <div class="list-actions">
           <button type="button" class="secondary" (click)="refreshAll()" [disabled]="loading">Atualizar</button>
           <button type="button" class="secondary" (click)="clearFilters()">Limpar Filtros</button>
+          <button type="button" class="secondary" (click)="clearBatchSelection()">Limpar Selecao</button>
         </div>
       </div>
 
@@ -349,23 +346,39 @@
         <input type="date" [(ngModel)]="listDateFrom" />
         <input type="date" [(ngModel)]="listDateTo" />
       </div>
+      <div class="card batch-actions-card">
+        <strong>Selecao em lote:</strong>
+        <span>{{ selectedLaudoIds.length }} laudo(s) selecionado(s)</span>
+        <button type="button" class="secondary" (click)="printSelectedLaudos()">Imprimir lote</button>
+        <button type="button" class="secondary" (click)="printSelectedLaudos(suggestPdf: true)">Baixar PDF</button>
+      </div>
 
       <div class="laudo-list">
         <article class="card oci-group-card" *ngFor="let group of laudosPorOciPrincipal">
           <div class="oci-group-head">
-            <h3>{{ group.ociCodigo }} - {{ group.ociDescricao }}</h3>
+            <h3>
+              <label class="batch-check">
+                <input type="checkbox" [checked]="isGroupFullySelected(group)" (change)="toggleGroupSelection(group, $event.target.checked)" />
+                <span>{{ group.ociCodigo }} - {{ group.ociDescricao }}</span>
+              </label>
+            </h3>
             <span class="group-count">{{ group.laudos.length }} laudo(s)</span>
           </div>
 
-          <article class="laudo-item" *ngFor="let laudo of group.laudos">
+          <article class="laudo-item" *ngFor="let laudo of group.laudos" [class.selected-for-batch]="isSelectedForBatch(laudo.id)">
             <div class="laudo-main">
+              <label class="batch-check">
+                <input type="checkbox" [checked]="isSelectedForBatch(laudo.id)" (change)="toggleLaudoSelection(laudo.id, $event.target.checked)" />
+                <span></span>
+              </label>
               <h3>{{ laudo.nomePaciente }} <span [class]="statusClass(laudo.status)">{{ statusLabel(laudo.status) }}</span></h3>
               <p>{{ laudo.unidadeSolicitante }} - {{ formatDate(laudo.createdAt) }}</p>
             </div>
             <div class="laudo-actions">
+              <button type="button" class="secondary" (click)="startViewAndPrint(laudo)">Imprimir</button>
               <button type="button" class="secondary" (click)="startView(laudo)">Visualizar</button>
-              <button type="button" class="secondary" (click)="startEdit(laudo)">Editar</button>
-              <button type="button" class="danger" (click)="removeLaudo(laudo.id)">Excluir</button>
+              <button type="button" class="secondary" (click)="startEdit(laudo)" [disabled]="!canWriteLaudo">Editar</button>
+              <button type="button" class="danger" (click)="removeLaudo(laudo.id)" [disabled]="!canWriteLaudo">Excluir</button>
             </div>
           </article>
         </article>
@@ -374,6 +387,69 @@
           Nenhum laudo encontrado para os filtros informados.
         </article>
       </div>
+    </section>
+
+    <section *ngIf="isAuthenticated && currentPage == 'admin' && canAccessAdmin">
+      <div class="page-head">
+        <div>
+          <h1>Administracao de Usuarios</h1>
+          <p>Cadastre operadores e atribua multiplos perfis de acesso.</p>
+        </div>
+        <div class="list-actions">
+          <button type="button" class="secondary" (click)="resetAdminForm()">Novo usuario</button>
+          <button type="button" class="secondary" (click)="loadAdminUsers()" [disabled]="adminLoading">Atualizar</button>
+        </div>
+      </div>
+
+      <article class="card admin-form-card">
+        <div class="admin-form-grid">
+          <label>Nome <input type="text" [(ngModel)]="adminNome" /></label>
+          <label>Email <input type="email" [(ngModel)]="adminEmail" /></label>
+          <label>Senha <input type="password" [(ngModel)]="adminSenha" placeholder="{{ adminEditingUserId == null ? 'Senha inicial (min. 6)' : 'Nova senha (opcional)' }}" /></label>
+          <label class="checkbox-line"><input type="checkbox" [(ngModel)]="adminAtivo" /> Ativo</label>
+        </div>
+        <div class="admin-roles">
+          <label class="checkbox-line"><input type="checkbox" [(ngModel)]="adminRoleAdmin" /> Admin</label>
+          <label class="checkbox-line"><input type="checkbox" [(ngModel)]="adminRoleFaturista" /> Faturista</label>
+          <label class="checkbox-line"><input type="checkbox" [(ngModel)]="adminRoleOperador" /> Operador</label>
+          <label class="checkbox-line"><input type="checkbox" [(ngModel)]="adminRoleGestor" /> Gestor</label>
+        </div>
+        <div class="list-actions">
+          <button type="button" (click)="saveAdminUser()" [disabled]="adminSaving">{{ adminSaving ? 'Salvando...' : (adminEditingUserId == null ? 'Cadastrar usuario' : 'Salvar alteracoes') }}</button>
+          <button type="button" class="secondary" (click)="resetAdminForm()">Limpar</button>
+        </div>
+      </article>
+
+      <article class="card admin-list-card">
+        <table>
+          <thead>
+            <tr>
+              <th>NOME</th>
+              <th>EMAIL</th>
+              <th>PERFIS</th>
+              <th>STATUS</th>
+              <th>ACOES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let user of adminUsers">
+              <td>{{ user['nome'] }}</td>
+              <td>{{ user['email'] }}</td>
+              <td>{{ userRolesLabel(user) }}</td>
+              <td>{{ (user['ativo'] == true || user['ativo'] == 1) ? 'Ativo' : 'Inativo' }}</td>
+              <td>
+                <div class="list-actions">
+                  <button type="button" class="secondary" (click)="editAdminUser(user)">Editar</button>
+                  <button type="button" class="danger" (click)="deactivateAdminUserByValue(user['id'])">Desativar</button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="adminUsers.isEmpty">
+              <td colspan="5" class="empty">{{ adminLoading ? 'Carregando usuarios...' : 'Nenhum usuario cadastrado.' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
     </section>
   </main>
 </div>

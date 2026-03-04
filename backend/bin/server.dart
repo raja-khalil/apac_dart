@@ -9,6 +9,8 @@ import 'package:apac_backend/src/modules/auth/routes.dart';
 import 'package:apac_backend/src/modules/auth/services/auth_service.dart';
 import 'package:apac_backend/src/modules/laudo/controllers/laudo_controller.dart';
 import 'package:apac_backend/src/modules/laudo/routes.dart';
+import 'package:apac_backend/src/modules/user/controllers/user_controller.dart';
+import 'package:apac_backend/src/modules/user/routes.dart';
 import 'package:apac_backend/src/shared/di.dart';
 import 'package:apac_backend/src/shared/middlewares.dart';
 import 'package:shelf/shelf.dart';
@@ -24,7 +26,8 @@ Future<void> main() async {
     })
     ..mount('/api/', buildAuthRoutes(di<AuthController>()).call)
     ..mount('/api/', buildAuditRoutes(di<AuditLogController>()).call)
-    ..mount('/api/', buildLaudoRoutes(di<LaudoController>()).call);
+    ..mount('/api/', buildLaudoRoutes(di<LaudoController>()).call)
+    ..mount('/api/', buildUserRoutes(di<UserController>()).call);
 
   final handler = Pipeline()
       .addMiddleware(logRequests())

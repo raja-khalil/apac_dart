@@ -12,6 +12,10 @@ import 'package:apac_backend/src/modules/laudo/controllers/laudo_controller.dart
 import 'package:apac_backend/src/modules/laudo/repositories/eloquent_laudo_repository.dart';
 import 'package:apac_backend/src/modules/laudo/repositories/laudo_repository.dart';
 import 'package:apac_backend/src/modules/laudo/services/laudo_service.dart';
+import 'package:apac_backend/src/modules/user/controllers/user_controller.dart';
+import 'package:apac_backend/src/modules/user/repositories/eloquent_user_repository.dart';
+import 'package:apac_backend/src/modules/user/repositories/user_repository.dart';
+import 'package:apac_backend/src/modules/user/services/user_service.dart';
 import 'package:get_it/get_it.dart';
 
 final GetIt di = GetIt.instance;
@@ -53,5 +57,15 @@ Future<void> configureDependencies() async {
   );
   di.registerLazySingleton<LaudoController>(
     () => LaudoController(di<LaudoService>()),
+  );
+
+  di.registerLazySingleton<IUserRepository>(
+    () => EloquentUserRepository(Database.connection),
+  );
+  di.registerLazySingleton<UserService>(
+    () => UserService(di<IUserRepository>(), di<PasswordHasher>()),
+  );
+  di.registerLazySingleton<UserController>(
+    () => UserController(di<UserService>()),
   );
 }

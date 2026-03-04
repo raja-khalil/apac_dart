@@ -51,9 +51,6 @@ class AppComponent implements OnInit {
   String currentPage = 'login';
   bool isAuthenticated = false;
   bool loggingIn = false;
-  bool registering = false;
-  bool registerMode = false;
-  String loginNome = '';
   String loginEmail = '';
   String loginSenha = '';
   String? authMessage;
@@ -77,6 +74,21 @@ class AppComponent implements OnInit {
   String listDateTo = '';
   String solicitanteSearch = '';
   String ociSearch = '';
+  final Set<int> selectedLaudoIds = <int>{};
+  bool batchPrintMode = false;
+
+  List<Map<String, dynamic>> adminUsers = <Map<String, dynamic>>[];
+  bool adminLoading = false;
+  bool adminSaving = false;
+  int? adminEditingUserId;
+  String adminNome = '';
+  String adminEmail = '';
+  String adminSenha = '';
+  bool adminAtivo = true;
+  bool adminRoleFaturista = false;
+  bool adminRoleOperador = true;
+  bool adminRoleGestor = false;
+  bool adminRoleAdmin = false;
 
   int? editingId;
   bool viewOnly = false;
@@ -139,6 +151,11 @@ class AppComponent implements OnInit {
   List<Estabelecimento> get executantes => estabelecimentosExecutantes;
   List<OciProcedimento> get ocis => ociProcedimentos;
   List<String> get statusList => statusOptions;
+  bool get canAccessAdmin => _service.hasRole('admin');
+  bool get canWriteLaudo =>
+      _service.hasRole('admin') ||
+      _service.hasRole('operador') ||
+      _service.hasRole('gestor');
 
   List<String> get ociCategorias {
     final categories = ocis.map((o) => categoriaPorCodigoOci(o.codigo)).toSet().toList();
@@ -473,17 +490,27 @@ class AppComponent implements OnInit {
       currentPage = 'login';
       return;
     }
+    if (page == 'admin' && !canAccessAdmin) {
+      errorMessage = 'Acesso negado: area administrativa disponivel apenas para perfil admin.';
+      return;
+    }
     currentPage = page;
     errorMessage = null;
     if (page == 'novo' && editingId == null) {
       viewOnly = false;
       _clearForm();
     }
+    if (page == 'laudos') {
+      selectedLaudoIds.clear();
+      batchPrintMode = false;
+    }
+    if (page == 'admin') {
+      loadAdminUsers();
+    }
   }
 
   Future<void> login() async {
     authMessage = null;
-    final nome = loginNome.trim();
     final email = loginEmail.trim();
     final senha = loginSenha.trim();
 
@@ -492,29 +519,11 @@ class AppComponent implements OnInit {
       return;
     }
 
-    if (registerMode) {
-      if (nome.isEmpty) {
-        authMessage = 'Informe o nome para cadastro.';
-        return;
-      }
-      if (senha.length < 6) {
-        authMessage = 'Senha deve ter no minimo 6 caracteres.';
-        return;
-      }
-    }
-
     try {
-      if (registerMode) {
-        registering = true;
-        await _service.register(nome: nome, email: email, senha: senha);
-      }
-
       loggingIn = true;
       await _service.login(email: email, senha: senha);
       authUser = _service.currentUser;
       isAuthenticated = true;
-      registerMode = false;
-      loginNome = '';
       loginSenha = '';
       currentPage = 'dashboard';
       await refreshAll();
@@ -522,18 +531,12 @@ class AppComponent implements OnInit {
       authMessage = _errorText(error);
     } finally {
       loggingIn = false;
-      registering = false;
     }
   }
 
   Future<void> logout() async {
     await _service.logout();
     _logoutLocal('Sessao encerrada.');
-  }
-
-  void toggleRegisterMode() {
-    registerMode = !registerMode;
-    authMessage = null;
   }
 
   void _handleUnauthorizedFromService() {
@@ -546,6 +549,10 @@ class AppComponent implements OnInit {
     authMessage = message;
     errorMessage = null;
     laudos = <Laudo>[];
+    adminUsers = <Map<String, dynamic>>[];
+    resetAdminForm();
+    selectedLaudoIds.clear();
+    batchPrintMode = false;
     currentPage = 'login';
     _clearForm();
   }
@@ -564,6 +571,11 @@ class AppComponent implements OnInit {
 
   Future<void> submitForm() async {
     if (viewOnly) return;
+    if (!canWriteLaudo) {
+      errorMessage =
+          'Seu perfil permite apenas consulta/impressao. Edicao de laudo nao autorizada.';
+      return;
+    }
 
     if (pacienteNome.trim().isEmpty || pacienteCpf.trim().isEmpty || pacienteDataNasc.isEmpty) {
       errorMessage = 'Preencha os campos obrigatorios do paciente.';
@@ -691,6 +703,11 @@ class AppComponent implements OnInit {
   }
 
   void startEdit(Laudo laudo) {
+    if (!canWriteLaudo) {
+      errorMessage =
+          'Seu perfil permite apenas consulta/impressao. Edicao nao autorizada.';
+      return;
+    }
     viewOnly = false;
     _loadLaudoInForm(laudo);
   }
@@ -701,6 +718,11 @@ class AppComponent implements OnInit {
   }
 
   void enableEditingFromView() {
+    if (!canWriteLaudo) {
+      errorMessage =
+          'Seu perfil permite apenas consulta/impressao. Edicao nao autorizada.';
+      return;
+    }
     viewOnly = false;
   }
 
@@ -777,6 +799,11 @@ class AppComponent implements OnInit {
   }
 
   Future<void> removeLaudo(int id) async {
+    if (!canWriteLaudo) {
+      errorMessage =
+          'Seu perfil permite apenas consulta/impressao. Exclusao nao autorizada.';
+      return;
+    }
     try {
       await _service.deleteLaudo(id);
       await refreshAll();
@@ -882,6 +909,175 @@ class AppComponent implements OnInit {
     dashboardDateTo = '';
   }
 
+  bool isSelectedForBatch(int id) => selectedLaudoIds.contains(id);
+
+  void toggleLaudoSelection(int id, bool selected) {
+    if (selected) {
+      selectedLaudoIds.add(id);
+    } else {
+      selectedLaudoIds.remove(id);
+    }
+  }
+
+  bool isGroupFullySelected(LaudoGroup group) {
+    if (group.laudos.isEmpty) return false;
+    for (final laudo in group.laudos) {
+      if (!selectedLaudoIds.contains(laudo.id)) return false;
+    }
+    return true;
+  }
+
+  void toggleGroupSelection(LaudoGroup group, bool selected) {
+    for (final laudo in group.laudos) {
+      if (selected) {
+        selectedLaudoIds.add(laudo.id);
+      } else {
+        selectedLaudoIds.remove(laudo.id);
+      }
+    }
+  }
+
+  void clearBatchSelection() {
+    selectedLaudoIds.clear();
+    batchPrintMode = false;
+  }
+
+  Future<void> printSelectedLaudos({bool suggestPdf = false}) async {
+    if (selectedLaudoIds.isEmpty) {
+      errorMessage = 'Selecione ao menos um laudo para imprimir em lote.';
+      return;
+    }
+    batchPrintMode = true;
+    errorMessage = null;
+    if (suggestPdf) {
+      authMessage =
+          'Na janela de impressao selecione "Salvar como PDF" para baixar o lote.';
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    html.window.print();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    batchPrintMode = false;
+  }
+
+  Future<void> loadAdminUsers() async {
+    if (!canAccessAdmin) return;
+    adminLoading = true;
+    try {
+      adminUsers = await _service.fetchUsers();
+    } catch (error) {
+      errorMessage = _errorText(error);
+    } finally {
+      adminLoading = false;
+    }
+  }
+
+  void resetAdminForm() {
+    adminEditingUserId = null;
+    adminNome = '';
+    adminEmail = '';
+    adminSenha = '';
+    adminAtivo = true;
+    adminRoleAdmin = false;
+    adminRoleFaturista = false;
+    adminRoleOperador = true;
+    adminRoleGestor = false;
+  }
+
+  List<String> get _adminFormRoles {
+    final roles = <String>[];
+    if (adminRoleAdmin) roles.add('admin');
+    if (adminRoleFaturista) roles.add('faturista');
+    if (adminRoleOperador) roles.add('operador');
+    if (adminRoleGestor) roles.add('gestor');
+    return roles;
+  }
+
+  Future<void> saveAdminUser() async {
+    if (!canAccessAdmin) return;
+    if (adminNome.trim().isEmpty || adminEmail.trim().isEmpty) {
+      errorMessage = 'Preencha nome e email do usuario.';
+      return;
+    }
+    if (adminEditingUserId == null && adminSenha.trim().length < 6) {
+      errorMessage = 'Senha inicial deve ter no minimo 6 caracteres.';
+      return;
+    }
+
+    final roles = _adminFormRoles;
+    if (roles.isEmpty) {
+      errorMessage = 'Selecione ao menos um perfil de acesso.';
+      return;
+    }
+
+    adminSaving = true;
+    errorMessage = null;
+    final payload = <String, dynamic>{
+      'nome': adminNome.trim(),
+      'email': adminEmail.trim(),
+      'ativo': adminAtivo,
+      'perfis': roles,
+    };
+    if (adminSenha.trim().isNotEmpty) {
+      payload['senha'] = adminSenha.trim();
+    }
+
+    try {
+      if (adminEditingUserId == null) {
+        await _service.createUser(payload);
+      } else {
+        await _service.updateUser(adminEditingUserId!, payload);
+      }
+      await loadAdminUsers();
+      resetAdminForm();
+    } catch (error) {
+      errorMessage = _errorText(error);
+    } finally {
+      adminSaving = false;
+    }
+  }
+
+  void editAdminUser(Map<String, dynamic> user) {
+    adminEditingUserId = (user['id'] as num?)?.toInt();
+    adminNome = (user['nome'] ?? '').toString();
+    adminEmail = (user['email'] ?? '').toString();
+    adminSenha = '';
+    adminAtivo = user['ativo'] == true || user['ativo'] == 1;
+    final roles = ((user['roles'] as List?) ?? const <dynamic>[])
+        .map((e) => e.toString().trim().toLowerCase())
+        .toSet();
+    adminRoleAdmin = roles.contains('admin');
+    adminRoleFaturista = roles.contains('faturista');
+    adminRoleOperador = roles.contains('operador');
+    adminRoleGestor = roles.contains('gestor');
+    currentPage = 'admin';
+  }
+
+  Future<void> deactivateAdminUser(int id) async {
+    if (!canAccessAdmin) return;
+    try {
+      await _service.deactivateUser(id);
+      await loadAdminUsers();
+      if (adminEditingUserId == id) {
+        resetAdminForm();
+      }
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  void startViewAndPrint(Laudo laudo) {
+    startView(laudo);
+    Future<void>.delayed(const Duration(milliseconds: 60), () {
+      printLaudo();
+    });
+  }
+
+  Future<void> deactivateAdminUserByValue(dynamic idValue) async {
+    final id = (idValue is num) ? idValue.toInt() : int.tryParse(idValue?.toString() ?? '');
+    if (id == null) return;
+    await deactivateAdminUser(id);
+  }
+
   void printLaudo() {
     html.window.print();
   }
@@ -910,6 +1106,14 @@ class AppComponent implements OnInit {
       default:
         return 'tag rascunho';
     }
+  }
+
+  String userRolesLabel(Map<String, dynamic> user) {
+    final roles = ((user['roles'] as List?) ?? const <dynamic>[])
+        .map((e) => e.toString())
+        .toList();
+    if (roles.isEmpty) return 'sem perfil';
+    return roles.join(', ');
   }
 
   String formatDate(String raw) {

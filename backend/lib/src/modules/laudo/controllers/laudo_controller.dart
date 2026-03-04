@@ -9,6 +9,14 @@ class LaudoController {
   final LaudoService _service;
 
   Future<Response> index(Request request) async {
+    final denied = _forbiddenIfMissingAnyRole(request, const <String>{
+      'admin',
+      'faturista',
+      'operador',
+      'gestor',
+    });
+    if (denied != null) return denied;
+
     final query = request.url.queryParameters['q'];
     final status = request.url.queryParameters['status'];
     final unidade = request.url.queryParameters['unidade_cnes'];
@@ -23,6 +31,14 @@ class LaudoController {
   }
 
   Future<Response> show(Request request, String id) async {
+    final denied = _forbiddenIfMissingAnyRole(request, const <String>{
+      'admin',
+      'faturista',
+      'operador',
+      'gestor',
+    });
+    if (denied != null) return denied;
+
     final parsedId = int.tryParse(id);
     if (parsedId == null) {
       return _json({'error': 'ID invalido.'}, status: 400);
@@ -37,6 +53,13 @@ class LaudoController {
   }
 
   Future<Response> store(Request request) async {
+    final denied = _forbiddenIfMissingAnyRole(request, const <String>{
+      'admin',
+      'operador',
+      'gestor',
+    });
+    if (denied != null) return denied;
+
     final payload = await _readPayload(request);
     if (payload == null) {
       return _json({'error': 'JSON invalido.'}, status: 400);
@@ -56,6 +79,13 @@ class LaudoController {
   }
 
   Future<Response> update(Request request, String id) async {
+    final denied = _forbiddenIfMissingAnyRole(request, const <String>{
+      'admin',
+      'operador',
+      'gestor',
+    });
+    if (denied != null) return denied;
+
     final parsedId = int.tryParse(id);
     if (parsedId == null) {
       return _json({'error': 'ID invalido.'}, status: 400);
@@ -85,6 +115,13 @@ class LaudoController {
   }
 
   Future<Response> destroy(Request request, String id) async {
+    final denied = _forbiddenIfMissingAnyRole(request, const <String>{
+      'admin',
+      'operador',
+      'gestor',
+    });
+    if (denied != null) return denied;
+
     final parsedId = int.tryParse(id);
     if (parsedId == null) {
       return _json({'error': 'ID invalido.'}, status: 400);
@@ -151,6 +188,22 @@ class LaudoController {
       }
     }
     return '';
+  }
+
+  Response? _forbiddenIfMissingAnyRole(
+    Request request,
+    Set<String> allowedRoles,
+  ) {
+    final roles = (request.context['auth_roles'] as List?)
+            ?.map((e) => e.toString().trim().toLowerCase())
+            .where((e) => e.isNotEmpty)
+            .toSet() ??
+        <String>{};
+    if (roles.any(allowedRoles.contains)) return null;
+
+    return _json({
+      'error': 'Acesso negado para este perfil.',
+    }, status: 403);
   }
 
   Response _json(Map<String, dynamic> payload, {int status = 200}) {

@@ -14,6 +14,7 @@ class AuthService {
     required String nome,
     required String email,
     required String senha,
+    List<String> perfis = const <String>['operador'],
   }) async {
     final normalizedEmail = email.toLowerCase().trim();
     final existing = await _repository.getUserByEmail(normalizedEmail);
@@ -29,6 +30,7 @@ class AuthService {
       email: normalizedEmail,
       senhaHash: hash,
       senhaSalt: salt,
+      perfis: perfis,
     );
   }
 
@@ -70,6 +72,7 @@ class AuthService {
         'id': user['id'],
         'nome': user['nome'],
         'email': user['email'],
+        'roles': user['roles'] ?? const <String>[],
       },
     };
   }
@@ -95,6 +98,8 @@ class AuthService {
       'id': (session['id'] as num).toInt(),
       'nome': (session['nome'] ?? '').toString(),
       'email': (session['email'] ?? '').toString(),
+      'roles': (session['roles'] as List?)?.map((e) => e.toString()).toList() ??
+          const <String>[],
     };
   }
 
