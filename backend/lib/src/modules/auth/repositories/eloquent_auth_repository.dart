@@ -32,9 +32,13 @@ class EloquentAuthRepository implements IAuthRepository {
         .limit(1)
         .get();
 
-    if ((credRows as List).isEmpty) return null;
-    user['senha_hash'] = (credRows.first as Map)['senha_hash'];
-    user['senha_salt'] = (credRows.first as Map)['senha_salt'];
+    if ((credRows as List).isEmpty) {
+      user['senha_hash'] = '';
+      user['senha_salt'] = '';
+    } else {
+      user['senha_hash'] = (credRows.first as Map)['senha_hash'];
+      user['senha_salt'] = (credRows.first as Map)['senha_salt'];
+    }
     user['roles'] = await getUserRoles((user['id'] as num).toInt());
 
     return user;

@@ -7,7 +7,9 @@ import 'package:apac_backend/src/modules/auth/controllers/auth_controller.dart';
 import 'package:apac_backend/src/modules/auth/repositories/auth_repository.dart';
 import 'package:apac_backend/src/modules/auth/repositories/eloquent_auth_repository.dart';
 import 'package:apac_backend/src/modules/auth/services/auth_service.dart';
+import 'package:apac_backend/src/modules/auth/services/email_sender.dart';
 import 'package:apac_backend/src/modules/auth/services/password_hasher.dart';
+import 'package:apac_backend/src/modules/auth/services/smtp_email_sender.dart';
 import 'package:apac_backend/src/modules/laudo/controllers/laudo_controller.dart';
 import 'package:apac_backend/src/modules/laudo/repositories/eloquent_laudo_repository.dart';
 import 'package:apac_backend/src/modules/laudo/repositories/laudo_repository.dart';
@@ -28,12 +30,17 @@ Future<void> configureDependencies() async {
   await Database.initialize();
 
   di.registerLazySingleton<PasswordHasher>(() => const PasswordHasher());
+  di.registerLazySingleton<IEmailSender>(() => SmtpEmailSender());
 
   di.registerLazySingleton<IAuthRepository>(
     () => EloquentAuthRepository(Database.connection),
   );
   di.registerLazySingleton<AuthService>(
-    () => AuthService(di<IAuthRepository>(), di<PasswordHasher>()),
+    () => AuthService(
+      di<IAuthRepository>(),
+      di<PasswordHasher>(),
+      di<IEmailSender>(),
+    ),
   );
   di.registerLazySingleton<AuthController>(
     () => AuthController(di<AuthService>()),
@@ -66,6 +73,6 @@ Future<void> configureDependencies() async {
     () => UserService(di<IUserRepository>(), di<PasswordHasher>()),
   );
   di.registerLazySingleton<UserController>(
-    () => UserController(di<UserService>()),
+    () => UserController(di<UserService>(), di<AuthService>()),
   );
 }

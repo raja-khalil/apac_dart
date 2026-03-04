@@ -14,16 +14,27 @@ class UserService {
   Future<Map<String, dynamic>> create({
     required String nome,
     required String email,
-    required String senha,
+    String? senha,
     required bool ativo,
     required List<String> perfis,
   }) async {
-    final salt = _passwordHasher.generateSalt();
-    final hash = _passwordHasher.hashPassword(senha, salt);
+    final normalizedEmail = email.toLowerCase().trim();
+    final existing = await _repository.getByEmail(normalizedEmail);
+    if (existing != null) {
+      throw StateError('Ja existe usuario com esse email.');
+    }
+
+    String? salt;
+    String? hash;
+    final senhaNormalizada = senha?.trim() ?? '';
+    if (senhaNormalizada.isNotEmpty) {
+      salt = _passwordHasher.generateSalt();
+      hash = _passwordHasher.hashPassword(senhaNormalizada, salt);
+    }
 
     return _repository.create(
       nome: nome,
-      email: email,
+      email: normalizedEmail,
       senhaHash: hash,
       senhaSalt: salt,
       ativo: ativo,
@@ -39,6 +50,13 @@ class UserService {
     String? senha,
     List<String>? perfis,
   }) async {
+    if (email != null) {
+      final existing = await _repository.getByEmail(email.toLowerCase().trim());
+      if (existing != null && ((existing['id'] as num).toInt() != id)) {
+        throw StateError('Ja existe usuario com esse email.');
+      }
+    }
+
     String? senhaHash;
     String? senhaSalt;
 

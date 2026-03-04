@@ -1,14 +1,17 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:apac_backend/src/config/env.dart';
 import 'package:apac_backend/src/modules/auth/repositories/auth_repository.dart';
+import 'package:apac_backend/src/modules/auth/services/email_sender.dart';
 import 'package:apac_backend/src/modules/auth/services/password_hasher.dart';
 
 class AuthService {
-  AuthService(this._repository, this._hasher);
+  AuthService(this._repository, this._hasher, this._emailSender);
 
   final IAuthRepository _repository;
   final PasswordHasher _hasher;
+  final IEmailSender _emailSender;
 
   Future<Map<String, dynamic>> register({
     required String nome,
@@ -137,6 +140,73 @@ class AuthService {
       'message': 'Codigo de redefinicao gerado.',
       'reset_token': token,
       'expires_at': expiresAt.toIso8601String(),
+    };
+  }
+
+  Future<Map<String, dynamic>> sendPasswordSetupInvite({
+    required String email,
+    String? nome,
+  }) async {
+    final resetData = await requestPasswordReset(email: email);
+    final token = (resetData['reset_token'] ?? '').toString();
+    if (token.isEmpty) {
+      return {
+        'sent': false,
+        'message': 'Nao foi possivel gerar token de redefinicao.',
+      };
+    }
+
+    final link =
+        '${EnvConfig.frontendBaseUrl}/?reset_token=$token&email=${Uri.encodeComponent(email)}';
+
+    final text = '''
+Olá${(nome ?? '').trim().isNotEmpty ? ' $nome' : ''},
+
+Seu usuário foi cadastrado no sistema APAC/OCI.
+Para criar sua senha de acesso, use o link abaixo:
+$link
+
+Se preferir, no login clique em "Esqueci senha" e use este código:
+$token
+
+Este código expira em 30 minutos.
+''';
+
+    final html = '''
+<p>Olá${(nome ?? '').trim().isNotEmpty ? ' ${nome!.trim()}' : ''},</p>
+<p>Seu usuário foi cadastrado no sistema APAC/OCI.</p>
+<p>Para criar sua senha de acesso, use o link abaixo:</p>
+<p><a href="$link">$link</a></p>
+<p>Se preferir, no login clique em <strong>Esqueci senha</strong> e use este código:</p>
+<p><strong>$token</strong></p>
+<p>Este código expira em 30 minutos.</p>
+''';
+
+    bool sent = false;
+    try {
+      sent = await _emailSender.send(
+        toEmail: email,
+        subject: 'APAC/OCI - Criacao de senha',
+        text: text,
+        html: html,
+      );
+    } catch (_) {
+      sent = false;
+    }
+
+    if (sent) {
+      return {
+        'sent': true,
+        'message': 'Convite enviado por email.',
+      };
+    }
+
+    return {
+      'sent': false,
+      'message':
+          'Usuario criado, mas nao foi possivel enviar email (SMTP nao configurado).',
+      'reset_token': token,
+      'reset_link': link,
     };
   }
 

@@ -1,12 +1,14 @@
 import 'dart:convert';
 
+import 'package:apac_backend/src/modules/auth/services/auth_service.dart';
 import 'package:apac_backend/src/modules/user/services/user_service.dart';
 import 'package:shelf/shelf.dart';
 
 class UserController {
-  UserController(this._service);
+  UserController(this._service, this._authService);
 
   final UserService _service;
+  final AuthService _authService;
 
   Future<Response> index(Request request) async {
     final denied = _forbiddenIfNotAdmin(request);
@@ -25,27 +27,37 @@ class UserController {
 
     final nome = (payload['nome'] ?? '').toString().trim();
     final email = (payload['email'] ?? '').toString().trim();
-    final senha = (payload['senha'] ?? '').toString();
+    final senha = (payload['senha'] ?? '').toString().trim();
     final ativo = payload['ativo'] != false;
     final perfis = ((payload['perfis'] as List?) ?? const <dynamic>[])
         .map((e) => e.toString())
         .toList();
 
-    if (nome.isEmpty || email.isEmpty || senha.length < 6) {
-      return _json({'error': 'Campos obrigatorios: nome, email, senha >= 6.'}, status: 422);
+    if (nome.isEmpty || email.isEmpty) {
+      return _json({'error': 'Campos obrigatorios: nome e email.'}, status: 422);
+    }
+    if (senha.isNotEmpty && senha.length < 6) {
+      return _json({'error': 'Se informada, a senha deve ter no minimo 6 caracteres.'}, status: 422);
     }
 
     try {
       final user = await _service.create(
         nome: nome,
         email: email,
-        senha: senha,
+        senha: senha.isEmpty ? null : senha,
         ativo: ativo,
         perfis: perfis,
       );
-      return _json({'data': user}, status: 201);
+      final convite = await _authService.sendPasswordSetupInvite(
+        email: email,
+        nome: nome,
+      );
+      return _json({'data': user, 'convite': convite}, status: 201);
     } catch (error) {
-      return _json({'error': error.toString().replaceFirst('Bad state: ', '')}, status: 422);
+      return _json(
+        {'error': error.toString().replaceFirst('Bad state: ', '')},
+        status: 422,
+      );
     }
   }
 
@@ -69,17 +81,26 @@ class UserController {
             .toList()
         : null;
 
-    final user = await _service.update(
-      id: parsedId,
-      nome: nome,
-      email: email,
-      senha: senha,
-      ativo: ativo,
-      perfis: perfis,
-    );
+    try {
+      final user = await _service.update(
+        id: parsedId,
+        nome: nome,
+        email: email,
+        senha: senha,
+        ativo: ativo,
+        perfis: perfis,
+      );
 
-    if (user == null) return _json({'error': 'Usuario nao encontrado.'}, status: 404);
-    return _json({'data': user});
+      if (user == null) {
+        return _json({'error': 'Usuario nao encontrado.'}, status: 404);
+      }
+      return _json({'data': user});
+    } catch (error) {
+      return _json(
+        {'error': error.toString().replaceFirst('Bad state: ', '')},
+        status: 422,
+      );
+    }
   }
 
   Future<Response> destroy(Request request, String id) async {

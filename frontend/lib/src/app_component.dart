@@ -62,6 +62,7 @@ class AppComponent implements OnInit {
   String forgotNewPassword = '';
   String? resetInfoMessage;
   String? authMessage;
+  String? successMessage;
   Map<String, dynamic>? authUser;
   bool loading = false;
   bool saving = false;
@@ -472,6 +473,7 @@ class AppComponent implements OnInit {
   Future<void> refreshAll() async {
     loading = true;
     errorMessage = null;
+    successMessage = null;
 
     await _service.resolveBaseUrl();
     apiEndpoint = _service.activeBaseUrl ?? 'API nao detectada';
@@ -504,6 +506,7 @@ class AppComponent implements OnInit {
     }
     currentPage = page;
     errorMessage = null;
+    successMessage = null;
     if (page == 'novo' && editingId == null) {
       viewOnly = false;
       _clearForm();
@@ -616,6 +619,7 @@ class AppComponent implements OnInit {
     isAuthenticated = false;
     authUser = null;
     authMessage = message;
+    successMessage = null;
     resetInfoMessage = null;
     errorMessage = null;
     laudos = <Laudo>[];
@@ -1073,10 +1077,6 @@ class AppComponent implements OnInit {
       errorMessage = 'Preencha nome e email do usuario.';
       return;
     }
-    if (adminEditingUserId == null && adminSenha.trim().length < 6) {
-      errorMessage = 'Senha inicial deve ter no minimo 6 caracteres.';
-      return;
-    }
 
     final roles = _adminFormRoles;
     if (roles.isEmpty) {
@@ -1086,6 +1086,7 @@ class AppComponent implements OnInit {
 
     adminSaving = true;
     errorMessage = null;
+    successMessage = null;
     final payload = <String, dynamic>{
       'nome': adminNome.trim(),
       'email': adminEmail.trim(),
@@ -1098,9 +1099,23 @@ class AppComponent implements OnInit {
 
     try {
       if (adminEditingUserId == null) {
-        await _service.createUser(payload);
+        final result = await _service.createUser(payload);
+        final convite = Map<String, dynamic>.from(
+          (result['convite'] as Map?) ?? <String, dynamic>{},
+        );
+        final sent = convite['sent'] == true;
+        final fallbackLink = (convite['reset_link'] ?? '').toString();
+        if (sent) {
+          successMessage = 'Usuario cadastrado. Convite enviado por email.';
+        } else if (fallbackLink.isNotEmpty) {
+          successMessage =
+              'Usuario cadastrado, mas SMTP nao configurado. Link de criacao de senha: $fallbackLink';
+        } else {
+          successMessage = 'Usuario cadastrado.';
+        }
       } else {
         await _service.updateUser(adminEditingUserId!, payload);
+        successMessage = 'Usuario atualizado com sucesso.';
       }
       await loadAdminUsers();
       resetAdminForm();

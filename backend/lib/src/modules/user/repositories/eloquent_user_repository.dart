@@ -39,11 +39,26 @@ class EloquentUserRepository implements IUserRepository {
   }
 
   @override
+  Future<Map<String, dynamic>?> getByEmail(String email) async {
+    final rows = await _db
+        .table('usuarios_v2')
+        .select(['id', 'nome', 'email', 'ativo', 'created_at', 'updated_at'])
+        .where('email', '=', email.toLowerCase().trim())
+        .limit(1)
+        .get();
+
+    if ((rows as List).isEmpty) return null;
+    final user = Map<String, dynamic>.from(rows.first as Map);
+    user['roles'] = await _rolesByUserId((user['id'] as num).toInt());
+    return user;
+  }
+
+  @override
   Future<Map<String, dynamic>> create({
     required String nome,
     required String email,
-    required String senhaHash,
-    required String senhaSalt,
+    String? senhaHash,
+    String? senhaSalt,
     required bool ativo,
     required List<String> perfis,
   }) async {
@@ -59,13 +74,15 @@ class EloquentUserRepository implements IUserRepository {
 
     final userId = (id as num).toInt();
 
-    await _db.table('usuario_credenciais_v2').insert({
-      'usuario_id': userId,
-      'senha_hash': senhaHash,
-      'senha_salt': senhaSalt,
-      'created_at': now,
-      'updated_at': now,
-    });
+    if (senhaHash != null && senhaSalt != null) {
+      await _db.table('usuario_credenciais_v2').insert({
+        'usuario_id': userId,
+        'senha_hash': senhaHash,
+        'senha_salt': senhaSalt,
+        'created_at': now,
+        'updated_at': now,
+      });
+    }
 
     await _syncRoles(userId, perfis, now);
 

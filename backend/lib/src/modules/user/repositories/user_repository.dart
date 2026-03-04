@@ -1,11 +1,12 @@
 abstract class IUserRepository {
   Future<List<Map<String, dynamic>>> listAll();
   Future<Map<String, dynamic>?> getById(int id);
+  Future<Map<String, dynamic>?> getByEmail(String email);
   Future<Map<String, dynamic>> create({
     required String nome,
     required String email,
-    required String senhaHash,
-    required String senhaSalt,
+    String? senhaHash,
+    String? senhaSalt,
     required bool ativo,
     required List<String> perfis,
   });

@@ -15,6 +15,30 @@ class EnvConfig {
       Platform.environment['SERVER_HOST'] ?? '0.0.0.0';
   static int get serverPort =>
       int.tryParse(Platform.environment['SERVER_PORT'] ?? '8081') ?? 8081;
+
+  static String get frontendBaseUrl =>
+      Platform.environment['FRONTEND_BASE_URL'] ?? 'http://127.0.0.1:8080';
+
+  static String get smtpHost => Platform.environment['SMTP_HOST'] ?? '';
+  static int get smtpPort =>
+      int.tryParse(Platform.environment['SMTP_PORT'] ?? '587') ?? 587;
+  static String get smtpUser => Platform.environment['SMTP_USER'] ?? '';
+  static String get smtpPassword => Platform.environment['SMTP_PASSWORD'] ?? '';
+  static String get smtpFromEmail =>
+      Platform.environment['SMTP_FROM_EMAIL'] ?? '';
+  static String get smtpFromName =>
+      Platform.environment['SMTP_FROM_NAME'] ?? 'APAC/OCI';
+  static bool get smtpUseSsl =>
+      (Platform.environment['SMTP_SSL'] ?? 'false').toLowerCase() == 'true';
+  static bool get smtpAllowInsecure =>
+      (Platform.environment['SMTP_ALLOW_INSECURE'] ?? 'false')
+          .toLowerCase() ==
+      'true';
+  static bool get smtpConfigured =>
+      smtpHost.isNotEmpty &&
+      smtpUser.isNotEmpty &&
+      smtpPassword.isNotEmpty &&
+      smtpFromEmail.isNotEmpty;
 }
 
 class Database {

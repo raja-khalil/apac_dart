@@ -384,7 +384,7 @@ class LaudoService {
       }
 
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+      return Map<String, dynamic>.from(payload);
     });
   }
 

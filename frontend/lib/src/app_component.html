@@ -25,6 +25,7 @@
       </div>
       <button type="button" class="secondary" (click)="tentarReconectarApi()">Tentar novamente</button>
     </div>
+    <div class="connection-banner" *ngIf="successMessage != null">{{ successMessage }}</div>
     <div class="error-banner" *ngIf="errorMessage != null">{{ errorMessage }}</div>
 
     <section *ngIf="!isAuthenticated" class="auth-page">
@@ -425,7 +426,7 @@
         <div class="admin-form-grid">
           <label>Nome <input type="text" [(ngModel)]="adminNome" /></label>
           <label>Email <input type="email" [(ngModel)]="adminEmail" /></label>
-          <label>Senha <input type="password" [(ngModel)]="adminSenha" placeholder="{{ adminEditingUserId == null ? 'Senha inicial (min. 6)' : 'Nova senha (opcional)' }}" /></label>
+          <label>Senha (opcional) <input type="password" [(ngModel)]="adminSenha" placeholder="{{ adminEditingUserId == null ? 'Opcional: definir senha manual' : 'Nova senha (opcional)' }}" /></label>
           <label class="checkbox-line"><input type="checkbox" [(ngModel)]="adminAtivo" /> Ativo</label>
         </div>
         <div class="admin-roles">
