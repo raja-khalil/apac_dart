@@ -114,7 +114,13 @@ class UserController {
   Response _json(Map<String, dynamic> payload, {int status = 200}) {
     return Response(
       status,
-      body: jsonEncode(payload),
+      body: jsonEncode(
+        payload,
+        toEncodable: (value) {
+          if (value is DateTime) return value.toIso8601String();
+          return value.toString();
+        },
+      ),
       headers: const {'content-type': 'application/json; charset=utf-8'},
     );
   }
