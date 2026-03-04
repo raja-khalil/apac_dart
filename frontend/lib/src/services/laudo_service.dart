@@ -43,10 +43,11 @@ class LaudoService {
   String? get activeBaseUrl => _resolvedBaseUrl;
   bool get isAuthenticated => _accessToken != null && _accessToken!.isNotEmpty;
   Map<String, dynamic>? get currentUser => _currentUser;
-  List<String> get currentRoles => ((currentUser?['roles'] as List?) ?? const <dynamic>[])
-      .map((e) => e.toString().trim().toLowerCase())
-      .where((e) => e.isNotEmpty)
-      .toList();
+  List<String> get currentRoles =>
+      ((currentUser?['roles'] as List?) ?? const <dynamic>[])
+          .map((e) => e.toString().trim().toLowerCase())
+          .where((e) => e.isNotEmpty)
+          .toList();
 
   bool hasRole(String role) {
     final normalized = role.trim().toLowerCase();
@@ -106,7 +107,8 @@ class LaudoService {
         throw Exception(_extractError(response.body, response.statusCode));
       }
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+      return Map<String, dynamic>.from(
+          (payload['data'] as Map?) ?? <String, dynamic>{});
     });
   }
 
@@ -229,7 +231,9 @@ class LaudoService {
     if (status != null && status.trim().isNotEmpty && status != 'all') {
       queryParams['status'] = status.trim();
     }
-    if (unidadeCnes != null && unidadeCnes.trim().isNotEmpty && unidadeCnes != 'all') {
+    if (unidadeCnes != null &&
+        unidadeCnes.trim().isNotEmpty &&
+        unidadeCnes != 'all') {
       queryParams['unidade_cnes'] = unidadeCnes.trim();
     }
 
@@ -237,8 +241,9 @@ class LaudoService {
       return await _executeWithRecovery((baseUrl) async {
         final uri = Uri.parse('$baseUrl/laudos')
             .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-        final response =
-            await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 5));
+        final response = await _client
+            .get(uri, headers: _headers())
+            .timeout(const Duration(seconds: 5));
 
         if (response.statusCode == 401) {
           _handleUnauthorized();
@@ -289,7 +294,8 @@ class LaudoService {
     } on TimeoutException {
       throw Exception('Tempo esgotado ao salvar laudo.');
     } catch (e) {
-      throw Exception('Nao foi possivel salvar. Verifique se o backend esta ativo. $e');
+      throw Exception(
+          'Nao foi possivel salvar. Verifique se o backend esta ativo. $e');
     }
   }
 
@@ -319,7 +325,8 @@ class LaudoService {
     } on TimeoutException {
       throw Exception('Tempo esgotado ao atualizar laudo.');
     } catch (e) {
-      throw Exception('Nao foi possivel atualizar. Verifique se o backend esta ativo. $e');
+      throw Exception(
+          'Nao foi possivel atualizar. Verifique se o backend esta ativo. $e');
     }
   }
 
@@ -341,7 +348,8 @@ class LaudoService {
     } on TimeoutException {
       throw Exception('Tempo esgotado ao remover laudo.');
     } catch (e) {
-      throw Exception('Nao foi possivel remover. Verifique se o backend esta ativo. $e');
+      throw Exception(
+          'Nao foi possivel remover. Verifique se o backend esta ativo. $e');
     }
   }
 
@@ -388,7 +396,8 @@ class LaudoService {
     });
   }
 
-  Future<Map<String, dynamic>> updateUser(int id, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> updateUser(
+      int id, Map<String, dynamic> body) async {
     return _executeWithRecovery((baseUrl) async {
       final response = await _client
           .put(
@@ -407,7 +416,8 @@ class LaudoService {
       }
 
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
-      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+      return Map<String, dynamic>.from(
+          (payload['data'] as Map?) ?? <String, dynamic>{});
     });
   }
 
@@ -430,12 +440,18 @@ class LaudoService {
 
   Future<List<Map<String, dynamic>>> fetchCatalogEstabelecimentos({
     String? tipo,
+    bool includeInativos = false,
   }) async {
     return _executeWithRecovery((baseUrl) async {
+      final query = <String, String>{};
+      if (tipo != null && tipo.trim().isNotEmpty) {
+        query['tipo'] = tipo.trim();
+      }
+      if (includeInativos) {
+        query['include_inativos'] = 'true';
+      }
       final uri = Uri.parse('$baseUrl/catalog/estabelecimentos').replace(
-        queryParameters: (tipo == null || tipo.trim().isEmpty)
-            ? null
-            : <String, String>{'tipo': tipo.trim()},
+        queryParameters: query.isEmpty ? null : query,
       );
       final response = await _client
           .get(uri, headers: _headers())
@@ -453,10 +469,18 @@ class LaudoService {
     });
   }
 
-  Future<List<Map<String, dynamic>>> fetchCatalogPrincipais() async {
+  Future<List<Map<String, dynamic>>> fetchCatalogPrincipais({
+    bool includeInativos = false,
+  }) async {
     return _executeWithRecovery((baseUrl) async {
+      final uri =
+          Uri.parse('$baseUrl/catalog/procedimentos/principais').replace(
+        queryParameters: includeInativos
+            ? <String, String>{'include_inativos': 'true'}
+            : null,
+      );
       final response = await _client
-          .get(Uri.parse('$baseUrl/catalog/procedimentos/principais'), headers: _headers())
+          .get(uri, headers: _headers())
           .timeout(const Duration(seconds: 6));
       if (response.statusCode == 401) {
         _handleUnauthorized();
@@ -471,10 +495,18 @@ class LaudoService {
     });
   }
 
-  Future<List<Map<String, dynamic>>> fetchCatalogSecundarios() async {
+  Future<List<Map<String, dynamic>>> fetchCatalogSecundarios({
+    bool includeInativos = false,
+  }) async {
     return _executeWithRecovery((baseUrl) async {
+      final uri =
+          Uri.parse('$baseUrl/catalog/procedimentos/secundarios').replace(
+        queryParameters: includeInativos
+            ? <String, String>{'include_inativos': 'true'}
+            : null,
+      );
       final response = await _client
-          .get(Uri.parse('$baseUrl/catalog/procedimentos/secundarios'), headers: _headers())
+          .get(uri, headers: _headers())
           .timeout(const Duration(seconds: 6));
       if (response.statusCode == 401) {
         _handleUnauthorized();
@@ -516,7 +548,55 @@ class LaudoService {
   Future<void> deleteCatalogEstabelecimento(int id) async {
     await _executeWithRecovery((baseUrl) async {
       final response = await _client
-          .delete(Uri.parse('$baseUrl/catalog/estabelecimentos/$id'), headers: _headers())
+          .delete(Uri.parse('$baseUrl/catalog/estabelecimentos/$id'),
+              headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
+  Future<Map<String, dynamic>> updateCatalogEstabelecimento(
+    int id, {
+    required String nome,
+    required String cnes,
+    required String tipo,
+  }) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .put(
+            Uri.parse('$baseUrl/catalog/estabelecimentos/$id'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'nome': nome, 'cnes': cnes, 'tipo': tipo}),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from(
+          (payload['data'] as Map?) ?? <String, dynamic>{});
+    });
+  }
+
+  Future<void> setCatalogEstabelecimentoAtivo(int id, bool ativo) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .patch(
+            Uri.parse('$baseUrl/catalog/estabelecimentos/$id/status'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'ativo': ativo}),
+          )
           .timeout(const Duration(seconds: 6));
       if (response.statusCode == 401) {
         _handleUnauthorized();
@@ -538,7 +618,8 @@ class LaudoService {
           .post(
             Uri.parse('$baseUrl/catalog/procedimentos/secundarios'),
             headers: _headers(includeJson: true),
-            body: jsonEncode({'codigo_sigtap': codigoSigtap, 'descricao': descricao}),
+            body: jsonEncode(
+                {'codigo_sigtap': codigoSigtap, 'descricao': descricao}),
           )
           .timeout(const Duration(seconds: 6));
       if (response.statusCode == 401) {
@@ -583,7 +664,62 @@ class LaudoService {
   Future<void> deleteCatalogProcedimento(int id) async {
     await _executeWithRecovery((baseUrl) async {
       final response = await _client
-          .delete(Uri.parse('$baseUrl/catalog/procedimentos/$id'), headers: _headers())
+          .delete(Uri.parse('$baseUrl/catalog/procedimentos/$id'),
+              headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
+  Future<Map<String, dynamic>> updateCatalogProcedimento(
+    int id, {
+    required String codigoSigtap,
+    required String descricao,
+    List<int>? secundariosIds,
+  }) async {
+    return _executeWithRecovery((baseUrl) async {
+      final payload = <String, dynamic>{
+        'codigo_sigtap': codigoSigtap,
+        'descricao': descricao,
+      };
+      if (secundariosIds != null) {
+        payload['secundarios_ids'] = secundariosIds;
+      }
+      final response = await _client
+          .put(
+            Uri.parse('$baseUrl/catalog/procedimentos/$id'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final map = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from(
+          (map['data'] as Map?) ?? <String, dynamic>{});
+    });
+  }
+
+  Future<void> setCatalogProcedimentoAtivo(int id, bool ativo) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .patch(
+            Uri.parse('$baseUrl/catalog/procedimentos/$id/status'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'ativo': ativo}),
+          )
           .timeout(const Duration(seconds: 6));
       if (response.statusCode == 401) {
         _handleUnauthorized();
@@ -653,7 +789,8 @@ class LaudoService {
           .timeout(const Duration(seconds: 2));
       if (response.statusCode != 200) return false;
 
-      final contentType = (response.headers['content-type'] ?? '').toLowerCase();
+      final contentType =
+          (response.headers['content-type'] ?? '').toLowerCase();
       if (!contentType.contains('application/json')) return false;
 
       final payload = jsonDecode(response.body);
@@ -686,7 +823,8 @@ class LaudoService {
     }
   }
 
-  Future<T> _executeWithRecovery<T>(Future<T> Function(String baseUrl) action) async {
+  Future<T> _executeWithRecovery<T>(
+      Future<T> Function(String baseUrl) action) async {
     final first = await _ensureBaseUrl();
     try {
       return await action(first);
@@ -732,7 +870,8 @@ class LaudoService {
   String _extractError(String rawBody, int fallbackCode) {
     try {
       final payload = jsonDecode(rawBody) as Map<String, dynamic>;
-      final message = payload['error']?.toString() ?? payload['message']?.toString();
+      final message =
+          payload['error']?.toString() ?? payload['message']?.toString();
       if (message != null && message.isNotEmpty) {
         return message;
       }

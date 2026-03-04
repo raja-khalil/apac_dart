@@ -110,10 +110,16 @@ class Database {
         cnes VARCHAR(10),
         nome TEXT NOT NULL,
         tipo VARCHAR(20) NOT NULL,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
         CONSTRAINT estabelecimentos_v2_tipo_chk CHECK (tipo IN ('solicitante', 'executante', 'ambos'))
       );
+    ''');
+
+    await _connection.execute('''
+      ALTER TABLE public.estabelecimentos_v2
+      ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE;
     ''');
 
     await _connection.execute('''

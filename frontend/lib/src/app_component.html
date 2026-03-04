@@ -553,7 +553,26 @@
       </div>
 
       <article class="card admin-form-card">
-        <h3>Estabelecimentos (Solicitante/Executante)</h3>
+        <h3>Categoria: Estabelecimentos (Solicitante/Executante)</h3>
+        <div class="admin-catalog-filters">
+          <label>
+            Tipo
+            <select [(ngModel)]="adminCatalogEstFiltroTipo">
+              <option value="all">Todos</option>
+              <option value="solicitante">Solicitante</option>
+              <option value="executante">Executante</option>
+              <option value="ambos">Ambos</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select [(ngModel)]="adminCatalogEstFiltroStatus">
+              <option value="all">Todos</option>
+              <option value="ativos">Ativos</option>
+              <option value="inativos">Inativos</option>
+            </select>
+          </label>
+        </div>
         <div class="admin-form-grid">
           <label>Nome <input type="text" [(ngModel)]="adminNovoEstNome" /></label>
           <label>CNES <input type="text" [(ngModel)]="adminNovoEstCnes" /></label>
@@ -569,28 +588,67 @@
             <button type="button" (click)="createAdminEstabelecimento()">Adicionar</button>
           </div>
         </div>
+        <div class="admin-form-grid" *ngIf="adminEditEstId != null">
+          <label>Editar nome <input type="text" [(ngModel)]="adminEditEstNome" /></label>
+          <label>Editar CNES <input type="text" [(ngModel)]="adminEditEstCnes" /></label>
+          <label>
+            Editar tipo
+            <select [(ngModel)]="adminEditEstTipo">
+              <option value="solicitante">Solicitante</option>
+              <option value="executante">Executante</option>
+              <option value="ambos">Ambos</option>
+            </select>
+          </label>
+          <div class="list-actions">
+            <button type="button" (click)="saveEditAdminEstabelecimento()">Salvar</button>
+            <button type="button" class="secondary" (click)="cancelEditAdminEstabelecimento()">Cancelar</button>
+          </div>
+        </div>
         <table>
           <thead>
             <tr>
               <th>NOME</th>
               <th>CNES</th>
               <th>TIPO</th>
+              <th>STATUS</th>
               <th>ACOES</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let est of adminCatalogEstabelecimentos">
+            <tr *ngFor="let est of adminCatalogEstabelecimentosFiltrados">
               <td>{{ est['nome'] }}</td>
               <td>{{ est['cnes'] }}</td>
               <td>{{ est['tipo'] }}</td>
-              <td><button type="button" class="danger" (click)="removeAdminEstabelecimento(idAsInt(est['id']))">Remover</button></td>
+              <td>{{ isAtivo(est['ativo']) ? 'Ativo' : 'Inativo' }}</td>
+              <td>
+                <div class="list-actions">
+                  <button type="button" class="secondary" (click)="startEditAdminEstabelecimento(est)">Editar</button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    *ngIf="!isAtivo(est['ativo'])"
+                    (click)="setAdminEstabelecimentoAtivo(idAsInt(est['id']), true)"
+                  >
+                    Ativar
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    *ngIf="isAtivo(est['ativo'])"
+                    (click)="setAdminEstabelecimentoAtivo(idAsInt(est['id']), false)"
+                  >
+                    Desativar
+                  </button>
+                  <button type="button" class="danger" (click)="removeAdminEstabelecimento(idAsInt(est['id']))">Excluir</button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </article>
 
       <article class="card admin-form-card">
-        <h3>Procedimentos Secundarios</h3>
+        <h3>Categoria: Procedimentos Secundarios</h3>
         <div class="admin-form-grid">
           <label>Codigo SIGTAP <input type="text" [(ngModel)]="adminNovoSecCodigo" /></label>
           <label>Descricao <input type="text" [(ngModel)]="adminNovoSecDescricao" /></label>
@@ -598,11 +656,20 @@
             <button type="button" (click)="createAdminSecundario()">Adicionar</button>
           </div>
         </div>
+        <div class="admin-form-grid" *ngIf="adminEditSecId != null">
+          <label>Editar codigo <input type="text" [(ngModel)]="adminEditSecCodigo" /></label>
+          <label>Editar descricao <input type="text" [(ngModel)]="adminEditSecDescricao" /></label>
+          <div class="list-actions">
+            <button type="button" (click)="saveEditAdminSecundario()">Salvar</button>
+            <button type="button" class="secondary" (click)="cancelEditAdminSecundario()">Cancelar</button>
+          </div>
+        </div>
         <table>
           <thead>
             <tr>
               <th>CODIGO</th>
               <th>DESCRICAO</th>
+              <th>STATUS</th>
               <th>ACOES</th>
             </tr>
           </thead>
@@ -610,14 +677,36 @@
             <tr *ngFor="let sec of adminCatalogSecundarios">
               <td>{{ sec['codigo_sigtap'] }}</td>
               <td>{{ sec['descricao'] }}</td>
-              <td><button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(sec['id']))">Remover</button></td>
+              <td>{{ isAtivo(sec['ativo']) ? 'Ativo' : 'Inativo' }}</td>
+              <td>
+                <div class="list-actions">
+                  <button type="button" class="secondary" (click)="startEditAdminSecundario(sec)">Editar</button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    *ngIf="!isAtivo(sec['ativo'])"
+                    (click)="setAdminSecundarioAtivo(idAsInt(sec['id']), true)"
+                  >
+                    Ativar
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    *ngIf="isAtivo(sec['ativo'])"
+                    (click)="setAdminSecundarioAtivo(idAsInt(sec['id']), false)"
+                  >
+                    Desativar
+                  </button>
+                  <button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(sec['id']))">Excluir</button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </article>
 
       <article class="card admin-form-card">
-        <h3>Procedimentos Principais (OCI)</h3>
+        <h3>Categoria: Procedimentos Principais (OCI)</h3>
         <div class="admin-form-grid">
           <label>Codigo SIGTAP <input type="text" [(ngModel)]="adminNovoPriCodigo" /></label>
           <label>Descricao <input type="text" [(ngModel)]="adminNovoPriDescricao" /></label>
@@ -626,21 +715,42 @@
           </div>
         </div>
         <div class="admin-roles">
-              <label class="checkbox-line" *ngFor="let sec of adminCatalogSecundarios">
-                <input
-                  type="checkbox"
-                  [checked]="adminNovoPriSecIds.contains(idAsInt(sec['id']))"
-                  (change)="toggleAdminNovoPriSec(idAsInt(sec['id']), $event.target.checked)"
-                />
-                {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}
-              </label>
+          <label class="checkbox-line" *ngFor="let sec of adminCatalogSecundarios">
+            <input
+              type="checkbox"
+              [checked]="adminNovoPriSecIds.contains(idAsInt(sec['id']))"
+              (change)="toggleAdminNovoPriSec(idAsInt(sec['id']), $event.target.checked)"
+            />
+            {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}
+          </label>
         </div>
+
+        <div class="admin-form-grid" *ngIf="adminEditPriId != null">
+          <label>Editar codigo <input type="text" [(ngModel)]="adminEditPriCodigo" /></label>
+          <label>Editar descricao <input type="text" [(ngModel)]="adminEditPriDescricao" /></label>
+          <div class="list-actions">
+            <button type="button" (click)="saveEditAdminPrincipal()">Salvar</button>
+            <button type="button" class="secondary" (click)="cancelEditAdminPrincipal()">Cancelar</button>
+          </div>
+        </div>
+        <div class="admin-roles" *ngIf="adminEditPriId != null">
+          <label class="checkbox-line" *ngFor="let sec of adminCatalogSecundarios">
+            <input
+              type="checkbox"
+              [checked]="adminEditPriSecIds.contains(idAsInt(sec['id']))"
+              (change)="toggleAdminEditPriSec(idAsInt(sec['id']), $event.target.checked)"
+            />
+            {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}
+          </label>
+        </div>
+
         <table>
           <thead>
             <tr>
               <th>CODIGO</th>
               <th>DESCRICAO</th>
               <th>SECUNDARIOS</th>
+              <th>STATUS</th>
               <th>ACOES</th>
             </tr>
           </thead>
@@ -648,10 +758,30 @@
             <tr *ngFor="let p of adminCatalogPrincipais">
               <td>{{ p['codigo_sigtap'] }}</td>
               <td>{{ p['descricao'] }}</td>
+              <td>{{ secundariosCodesText(p['secundarios']) }}</td>
+              <td>{{ isAtivo(p['ativo']) ? 'Ativo' : 'Inativo' }}</td>
               <td>
-                {{ secundariosCodesText(p['secundarios']) }}
+                <div class="list-actions">
+                  <button type="button" class="secondary" (click)="startEditAdminPrincipal(p)">Editar</button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    *ngIf="!isAtivo(p['ativo'])"
+                    (click)="setAdminPrincipalAtivo(idAsInt(p['id']), true)"
+                  >
+                    Ativar
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    *ngIf="isAtivo(p['ativo'])"
+                    (click)="setAdminPrincipalAtivo(idAsInt(p['id']), false)"
+                  >
+                    Desativar
+                  </button>
+                  <button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(p['id']))">Excluir</button>
+                </div>
               </td>
-              <td><button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(p['id']))">Remover</button></td>
             </tr>
           </tbody>
         </table>

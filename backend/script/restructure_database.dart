@@ -24,7 +24,8 @@ Future<void> main() async {
   final db = await manager.connection();
 
   stdout.writeln('Reestruturando schema relacional (sem migracao de dados)...');
-  stdout.writeln('Conexao: ${EnvConfig.dbHost}:${EnvConfig.dbPort}/${EnvConfig.dbName}');
+  stdout.writeln(
+      'Conexao: ${EnvConfig.dbHost}:${EnvConfig.dbPort}/${EnvConfig.dbName}');
 
   try {
     await db.execute('BEGIN');
@@ -90,6 +91,7 @@ Future<void> _createTables(Connection db) async {
       cnes VARCHAR(10),
       nome TEXT NOT NULL,
       tipo VARCHAR(20) NOT NULL,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       CONSTRAINT estabelecimentos_v2_tipo_chk CHECK (tipo IN ('solicitante', 'executante', 'ambos'))
@@ -211,32 +213,58 @@ Future<void> _createTables(Connection db) async {
 }
 
 Future<void> _createIndexes(Connection db) async {
-  await db.execute('CREATE UNIQUE INDEX idx_pacientes_v2_cpf_uq ON public.pacientes_v2(cpf) WHERE cpf IS NOT NULL AND cpf <> \'\'');
-  await db.execute('CREATE INDEX idx_pacientes_v2_nome ON public.pacientes_v2(nome)');
-  await db.execute('CREATE INDEX idx_estabelecimentos_v2_nome ON public.estabelecimentos_v2(nome)');
-  await db.execute('CREATE INDEX idx_estabelecimentos_v2_cnes ON public.estabelecimentos_v2(cnes)');
-  await db.execute('CREATE UNIQUE INDEX idx_procedimentos_v2_codigo_uq ON public.procedimentos_v2(codigo_sigtap)');
-  await db.execute('CREATE INDEX idx_proc_princ_sec_principal_id ON public.procedimento_principal_secundario_v2(principal_id)');
-  await db.execute('CREATE INDEX idx_proc_princ_sec_secundario_id ON public.procedimento_principal_secundario_v2(secundario_id)');
-  await db.execute('CREATE INDEX idx_laudos_v2_status ON public.laudos_v2(status)');
-  await db.execute('CREATE INDEX idx_laudos_v2_created_at ON public.laudos_v2(created_at)');
-  await db.execute('CREATE INDEX idx_laudos_v2_paciente_id ON public.laudos_v2(paciente_id)');
-  await db.execute('CREATE INDEX idx_laudos_v2_solicitante_id ON public.laudos_v2(estabelecimento_solicitante_id)');
-  await db.execute('CREATE INDEX idx_laudos_v2_executante_id ON public.laudos_v2(estabelecimento_executante_id)');
-  await db.execute('CREATE INDEX idx_laudos_v2_proc_principal_id ON public.laudos_v2(procedimento_principal_id)');
-  await db.execute('CREATE INDEX idx_laudo_sec_v2_laudo_id ON public.laudo_procedimentos_secundarios_v2(laudo_id)');
-  await db.execute('CREATE INDEX idx_laudo_sec_v2_codigo ON public.laudo_procedimentos_secundarios_v2(codigo_sigtap)');
-  await db.execute('CREATE UNIQUE INDEX idx_usuarios_v2_email_uq ON public.usuarios_v2(email)');
-  await db.execute('CREATE UNIQUE INDEX idx_perfis_v2_codigo_uq ON public.perfis_v2(codigo)');
-  await db.execute('CREATE UNIQUE INDEX idx_sessoes_v2_token_uq ON public.sessoes_v2(token)');
-  await db.execute('CREATE UNIQUE INDEX idx_password_reset_tokens_v2_token_uq ON public.password_reset_tokens_v2(token)');
-  await db.execute('CREATE INDEX idx_password_reset_tokens_v2_usuario_id ON public.password_reset_tokens_v2(usuario_id)');
-  await db.execute('CREATE INDEX idx_password_reset_tokens_v2_expires_at ON public.password_reset_tokens_v2(expires_at)');
-  await db.execute('CREATE INDEX idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)');
-  await db.execute('CREATE INDEX idx_sessoes_v2_expires_at ON public.sessoes_v2(expires_at)');
-  await db.execute('CREATE INDEX idx_audit_logs_v2_usuario_id ON public.audit_logs_v2(usuario_id)');
-  await db.execute('CREATE INDEX idx_audit_logs_v2_entidade ON public.audit_logs_v2(entidade, entidade_id)');
-  await db.execute('CREATE INDEX idx_audit_logs_v2_created_at ON public.audit_logs_v2(created_at)');
+  await db.execute(
+      'CREATE UNIQUE INDEX idx_pacientes_v2_cpf_uq ON public.pacientes_v2(cpf) WHERE cpf IS NOT NULL AND cpf <> \'\'');
+  await db.execute(
+      'CREATE INDEX idx_pacientes_v2_nome ON public.pacientes_v2(nome)');
+  await db.execute(
+      'CREATE INDEX idx_estabelecimentos_v2_nome ON public.estabelecimentos_v2(nome)');
+  await db.execute(
+      'CREATE INDEX idx_estabelecimentos_v2_cnes ON public.estabelecimentos_v2(cnes)');
+  await db.execute(
+      'CREATE UNIQUE INDEX idx_procedimentos_v2_codigo_uq ON public.procedimentos_v2(codigo_sigtap)');
+  await db.execute(
+      'CREATE INDEX idx_proc_princ_sec_principal_id ON public.procedimento_principal_secundario_v2(principal_id)');
+  await db.execute(
+      'CREATE INDEX idx_proc_princ_sec_secundario_id ON public.procedimento_principal_secundario_v2(secundario_id)');
+  await db
+      .execute('CREATE INDEX idx_laudos_v2_status ON public.laudos_v2(status)');
+  await db.execute(
+      'CREATE INDEX idx_laudos_v2_created_at ON public.laudos_v2(created_at)');
+  await db.execute(
+      'CREATE INDEX idx_laudos_v2_paciente_id ON public.laudos_v2(paciente_id)');
+  await db.execute(
+      'CREATE INDEX idx_laudos_v2_solicitante_id ON public.laudos_v2(estabelecimento_solicitante_id)');
+  await db.execute(
+      'CREATE INDEX idx_laudos_v2_executante_id ON public.laudos_v2(estabelecimento_executante_id)');
+  await db.execute(
+      'CREATE INDEX idx_laudos_v2_proc_principal_id ON public.laudos_v2(procedimento_principal_id)');
+  await db.execute(
+      'CREATE INDEX idx_laudo_sec_v2_laudo_id ON public.laudo_procedimentos_secundarios_v2(laudo_id)');
+  await db.execute(
+      'CREATE INDEX idx_laudo_sec_v2_codigo ON public.laudo_procedimentos_secundarios_v2(codigo_sigtap)');
+  await db.execute(
+      'CREATE UNIQUE INDEX idx_usuarios_v2_email_uq ON public.usuarios_v2(email)');
+  await db.execute(
+      'CREATE UNIQUE INDEX idx_perfis_v2_codigo_uq ON public.perfis_v2(codigo)');
+  await db.execute(
+      'CREATE UNIQUE INDEX idx_sessoes_v2_token_uq ON public.sessoes_v2(token)');
+  await db.execute(
+      'CREATE UNIQUE INDEX idx_password_reset_tokens_v2_token_uq ON public.password_reset_tokens_v2(token)');
+  await db.execute(
+      'CREATE INDEX idx_password_reset_tokens_v2_usuario_id ON public.password_reset_tokens_v2(usuario_id)');
+  await db.execute(
+      'CREATE INDEX idx_password_reset_tokens_v2_expires_at ON public.password_reset_tokens_v2(expires_at)');
+  await db.execute(
+      'CREATE INDEX idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)');
+  await db.execute(
+      'CREATE INDEX idx_sessoes_v2_expires_at ON public.sessoes_v2(expires_at)');
+  await db.execute(
+      'CREATE INDEX idx_audit_logs_v2_usuario_id ON public.audit_logs_v2(usuario_id)');
+  await db.execute(
+      'CREATE INDEX idx_audit_logs_v2_entidade ON public.audit_logs_v2(entidade, entidade_id)');
+  await db.execute(
+      'CREATE INDEX idx_audit_logs_v2_created_at ON public.audit_logs_v2(created_at)');
 }
 
 Future<void> _seedProfilesAndAdmin(Connection db) async {
@@ -263,7 +291,8 @@ Future<void> _seedProfilesAndAdmin(Connection db) async {
       .where('codigo', '=', 'admin')
       .limit(1)
       .get();
-  final adminProfileId = (((perfilAdmin as List).first as Map)['id'] as num).toInt();
+  final adminProfileId =
+      (((perfilAdmin as List).first as Map)['id'] as num).toInt();
 
   await _seedAdminUser(
     db: db,

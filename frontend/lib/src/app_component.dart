@@ -1,4 +1,4 @@
-﻿import 'dart:html' as html;
+import 'dart:html' as html;
 import 'dart:math';
 
 import 'package:apac_frontend/src/data/procedimentos_data.dart';
@@ -74,7 +74,8 @@ class AppComponent implements OnInit {
   List<Estabelecimento> catalogSolicitantes = <Estabelecimento>[];
   List<Estabelecimento> catalogExecutantes = <Estabelecimento>[];
   List<OciProcedimento> catalogOcis = <OciProcedimento>[];
-  List<Map<String, dynamic>> adminCatalogEstabelecimentos = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> adminCatalogEstabelecimentos =
+      <Map<String, dynamic>>[];
   List<Map<String, dynamic>> adminCatalogPrincipais = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> adminCatalogSecundarios = <Map<String, dynamic>>[];
 
@@ -112,6 +113,19 @@ class AppComponent implements OnInit {
   String adminNovoPriCodigo = '';
   String adminNovoPriDescricao = '';
   final Set<int> adminNovoPriSecIds = <int>{};
+  String adminCatalogEstFiltroTipo = 'all';
+  String adminCatalogEstFiltroStatus = 'all';
+  int? adminEditEstId;
+  String adminEditEstNome = '';
+  String adminEditEstCnes = '';
+  String adminEditEstTipo = 'solicitante';
+  int? adminEditSecId;
+  String adminEditSecCodigo = '';
+  String adminEditSecDescricao = '';
+  int? adminEditPriId;
+  String adminEditPriCodigo = '';
+  String adminEditPriDescricao = '';
+  final Set<int> adminEditPriSecIds = <int>{};
   bool adminRoleAdmin = false;
 
   int? editingId;
@@ -175,10 +189,29 @@ class AppComponent implements OnInit {
     }).toList();
   }
 
-  List<Estabelecimento> get executantes =>
-      catalogExecutantes.isNotEmpty ? catalogExecutantes : estabelecimentosExecutantes;
-  List<OciProcedimento> get ocis => catalogOcis.isNotEmpty ? catalogOcis : ociProcedimentos;
+  List<Estabelecimento> get executantes => catalogExecutantes.isNotEmpty
+      ? catalogExecutantes
+      : estabelecimentosExecutantes;
+  List<OciProcedimento> get ocis =>
+      catalogOcis.isNotEmpty ? catalogOcis : ociProcedimentos;
   List<String> get statusList => statusOptions;
+  List<Map<String, dynamic>> get adminCatalogEstabelecimentosFiltrados {
+    final out = <Map<String, dynamic>>[];
+    for (final raw in adminCatalogEstabelecimentos) {
+      final item = Map<String, dynamic>.from(raw);
+      final tipo = (item['tipo'] ?? '').toString();
+      if (adminCatalogEstFiltroTipo != 'all' &&
+          tipo != adminCatalogEstFiltroTipo) {
+        continue;
+      }
+      final ativo = isAtivo(item['ativo']);
+      if (adminCatalogEstFiltroStatus == 'ativos' && !ativo) continue;
+      if (adminCatalogEstFiltroStatus == 'inativos' && ativo) continue;
+      out.add(item);
+    }
+    return out;
+  }
+
   bool get canAccessAdmin => _service.hasRole('admin');
   bool get canWriteLaudo =>
       _service.hasRole('admin') ||
@@ -186,19 +219,23 @@ class AppComponent implements OnInit {
       _service.hasRole('gestor');
 
   List<String> get ociCategorias {
-    final categories = ocis.map((o) => categoriaPorCodigoOci(o.codigo)).toSet().toList();
+    final categories =
+        ocis.map((o) => categoriaPorCodigoOci(o.codigo)).toSet().toList();
     categories.sort();
     return categories;
   }
 
   List<OciProcedimento> ocisPorCategoria(String categoria) {
-    final filtered = ocis.where((o) => categoriaPorCodigoOci(o.codigo) == categoria);
+    final filtered =
+        ocis.where((o) => categoriaPorCodigoOci(o.codigo) == categoria);
     if (ociSearch.trim().isEmpty) {
       return filtered.toList();
     }
     final q = ociSearch.toLowerCase().trim();
     return filtered
-        .where((o) => o.codigo.toLowerCase().contains(q) || o.nome.toLowerCase().contains(q))
+        .where((o) =>
+            o.codigo.toLowerCase().contains(q) ||
+            o.nome.toLowerCase().contains(q))
         .toList();
   }
 
@@ -216,24 +253,31 @@ class AppComponent implements OnInit {
   }
 
   List<Laudo> get dashboardLaudos {
-    final fromDate = dashboardDateFrom.isEmpty ? null : DateTime.tryParse(dashboardDateFrom);
-    final toDate = dashboardDateTo.isEmpty ? null : DateTime.tryParse(dashboardDateTo);
+    final fromDate =
+        dashboardDateFrom.isEmpty ? null : DateTime.tryParse(dashboardDateFrom);
+    final toDate =
+        dashboardDateTo.isEmpty ? null : DateTime.tryParse(dashboardDateTo);
 
     return laudos.where((l) {
-      if (dashboardUnidadeFilter != 'all' && l.unidadeCnes != dashboardUnidadeFilter) {
+      if (dashboardUnidadeFilter != 'all' &&
+          l.unidadeCnes != dashboardUnidadeFilter) {
         return false;
       }
       final createdAt = _parseCreatedAt(l);
       if (dashboardMonthFilter != 'all') {
-        if (createdAt == null || _monthKey(createdAt) != dashboardMonthFilter) return false;
+        if (createdAt == null || _monthKey(createdAt) != dashboardMonthFilter)
+          return false;
       }
       if (fromDate != null) {
-        if (createdAt == null || createdAt.isBefore(DateTime(fromDate.year, fromDate.month, fromDate.day))) {
+        if (createdAt == null ||
+            createdAt.isBefore(
+                DateTime(fromDate.year, fromDate.month, fromDate.day))) {
           return false;
         }
       }
       if (toDate != null) {
-        final endExclusive = DateTime(toDate.year, toDate.month, toDate.day + 1);
+        final endExclusive =
+            DateTime(toDate.year, toDate.month, toDate.day + 1);
         if (createdAt == null || !createdAt.isBefore(endExclusive)) {
           return false;
         }
@@ -272,26 +316,32 @@ class AppComponent implements OnInit {
 
   List<Laudo> get listLaudos {
     final q = listSearch.toLowerCase().trim();
-    final fromDate = listDateFrom.isEmpty ? null : DateTime.tryParse(listDateFrom);
+    final fromDate =
+        listDateFrom.isEmpty ? null : DateTime.tryParse(listDateFrom);
     final toDate = listDateTo.isEmpty ? null : DateTime.tryParse(listDateTo);
 
     final filtered = laudos.where((laudo) {
-      final statusOk = listStatusFilter == 'all' || laudo.status == listStatusFilter;
+      final statusOk =
+          listStatusFilter == 'all' || laudo.status == listStatusFilter;
       if (!statusOk) return false;
 
       final createdAt = _parseCreatedAt(laudo);
       if (listMonthFilter != 'all') {
-        if (createdAt == null || _monthKey(createdAt) != listMonthFilter) return false;
+        if (createdAt == null || _monthKey(createdAt) != listMonthFilter)
+          return false;
       }
 
       if (fromDate != null) {
-        if (createdAt == null || createdAt.isBefore(DateTime(fromDate.year, fromDate.month, fromDate.day))) {
+        if (createdAt == null ||
+            createdAt.isBefore(
+                DateTime(fromDate.year, fromDate.month, fromDate.day))) {
           return false;
         }
       }
 
       if (toDate != null) {
-        final endExclusive = DateTime(toDate.year, toDate.month, toDate.day + 1);
+        final endExclusive =
+            DateTime(toDate.year, toDate.month, toDate.day + 1);
         if (createdAt == null || !createdAt.isBefore(endExclusive)) {
           return false;
         }
@@ -312,7 +362,8 @@ class AppComponent implements OnInit {
     }).toList();
 
     filtered.sort((a, b) {
-      final byName = a.nomePaciente.toLowerCase().compareTo(b.nomePaciente.toLowerCase());
+      final byName =
+          a.nomePaciente.toLowerCase().compareTo(b.nomePaciente.toLowerCase());
       if (byName != 0) return byName;
       final aCreated = _parseCreatedAt(a);
       final bCreated = _parseCreatedAt(b);
@@ -343,7 +394,9 @@ class AppComponent implements OnInit {
       final parts = key.split('|');
       final groupLaudos = grouped[key] ?? <Laudo>[];
       groupLaudos.sort((a, b) {
-        final byName = a.nomePaciente.toLowerCase().compareTo(b.nomePaciente.toLowerCase());
+        final byName = a.nomePaciente
+            .toLowerCase()
+            .compareTo(b.nomePaciente.toLowerCase());
         if (byName != 0) return byName;
         final aCreated = _parseCreatedAt(a);
         final bCreated = _parseCreatedAt(b);
@@ -447,7 +500,8 @@ class AppComponent implements OnInit {
     for (final item in categories) {
       final sweep = total == 0 ? 0.0 : (item.count / total) * 360.0;
       final end = min(360.0, start + sweep);
-      parts.add('${item.color} ${start.toStringAsFixed(2)}deg ${end.toStringAsFixed(2)}deg');
+      parts.add(
+          '${item.color} ${start.toStringAsFixed(2)}deg ${end.toStringAsFixed(2)}deg');
       start = end;
     }
 
@@ -562,7 +616,8 @@ class AppComponent implements OnInit {
       return;
     }
     if (page == 'admin' && !canAccessAdmin) {
-      errorMessage = 'Acesso negado: area administrativa disponivel apenas para perfil admin.';
+      errorMessage =
+          'Acesso negado: area administrativa disponivel apenas para perfil admin.';
       return;
     }
     currentPage = page;
@@ -661,7 +716,8 @@ class AppComponent implements OnInit {
     authMessage = null;
     try {
       await _service.resetPassword(token: token, senha: senha);
-      resetInfoMessage = 'Senha redefinida com sucesso. Faça login com a nova senha.';
+      resetInfoMessage =
+          'Senha redefinida com sucesso. Faça login com a nova senha.';
       forgotNewPassword = '';
       forgotToken = '';
       forgotMode = false;
@@ -717,13 +773,18 @@ class AppComponent implements OnInit {
       return;
     }
 
-    if (pacienteNome.trim().isEmpty || pacienteCpf.trim().isEmpty || pacienteDataNasc.isEmpty) {
+    if (pacienteNome.trim().isEmpty ||
+        pacienteCpf.trim().isEmpty ||
+        pacienteDataNasc.isEmpty) {
       errorMessage = 'Preencha os campos obrigatorios do paciente.';
       return;
     }
 
-    if (solicitanteCnes.isEmpty || executanteCnes.isEmpty || ociCodigo.isEmpty) {
-      errorMessage = 'Preencha estabelecimento solicitante, executante e OCI principal.';
+    if (solicitanteCnes.isEmpty ||
+        executanteCnes.isEmpty ||
+        ociCodigo.isEmpty) {
+      errorMessage =
+          'Preencha estabelecimento solicitante, executante e OCI principal.';
       return;
     }
 
@@ -868,10 +929,15 @@ class AppComponent implements OnInit {
 
   void _loadLaudoInForm(Laudo laudo) {
     final payload = laudo.payload;
-    final paciente = Map<String, dynamic>.from((payload['paciente'] as Map?) ?? <String, dynamic>{});
-    final solicitante = Map<String, dynamic>.from((payload['estabelecimento_solicitante'] as Map?) ?? <String, dynamic>{});
-    final executante = Map<String, dynamic>.from((payload['estabelecimento_executante'] as Map?) ?? <String, dynamic>{});
-    final secundarios = (payload['procedimentos_secundarios'] as List?) ?? <dynamic>[];
+    final paciente = Map<String, dynamic>.from(
+        (payload['paciente'] as Map?) ?? <String, dynamic>{});
+    final solicitante = Map<String, dynamic>.from(
+        (payload['estabelecimento_solicitante'] as Map?) ??
+            <String, dynamic>{});
+    final executante = Map<String, dynamic>.from(
+        (payload['estabelecimento_executante'] as Map?) ?? <String, dynamic>{});
+    final secundarios =
+        (payload['procedimentos_secundarios'] as List?) ?? <dynamic>[];
 
     editingId = laudo.id;
     solicitanteCnes = (solicitante['cnes'] ?? laudo.unidadeCnes).toString();
@@ -887,14 +953,16 @@ class AppComponent implements OnInit {
     pacienteCor = (paciente['cor'] ?? '').toString();
     pacienteCartaoSus = (paciente['cartao_sus'] ?? '').toString();
     pacienteCpf = (paciente['cpf'] ?? laudo.cpf).toString();
-    pacienteDataNasc = (paciente['data_nascimento'] ?? laudo.dataNascimento).toString();
+    pacienteDataNasc =
+        (paciente['data_nascimento'] ?? laudo.dataNascimento).toString();
     pacienteResponsavel = (paciente['nome_responsavel'] ?? '').toString();
     pacienteTelefone = (paciente['telefone'] ?? '').toString();
     pacienteLogradouro = (paciente['logradouro'] ?? '').toString();
     pacienteNumero = (paciente['numero'] ?? '').toString();
     pacienteComplemento = (paciente['complemento'] ?? '').toString();
     pacienteBairro = (paciente['bairro'] ?? '').toString();
-    if (pacienteLogradouro.isEmpty && (paciente['endereco'] ?? '').toString().isNotEmpty) {
+    if (pacienteLogradouro.isEmpty &&
+        (paciente['endereco'] ?? '').toString().isNotEmpty) {
       pacienteLogradouro = (paciente['endereco'] ?? '').toString();
     }
     pacienteMunicipio = (paciente['municipio'] ?? 'Rio das Ostras').toString();
@@ -909,7 +977,8 @@ class AppComponent implements OnInit {
     descricaoDiagnostico = (payload['descricao_diagnostico'] ?? '').toString();
     observacoes = (payload['observacoes'] ?? '').toString();
 
-    profissionalSolicitante = (payload['profissional_solicitante'] ?? '').toString();
+    profissionalSolicitante =
+        (payload['profissional_solicitante'] ?? '').toString();
     documentoSolicitante = (payload['documento_solicitante'] ?? '').toString();
     tipoDocumento = (payload['tipo_documento'] ?? 'CPF').toString();
     dataSolicitacao = (payload['data_solicitacao'] ?? '').toString();
@@ -930,7 +999,8 @@ class AppComponent implements OnInit {
         });
       } else {
         secundarioSelecionado[codigo] = true;
-        secundarioDataExecucao[codigo] = (sec['data_execucao'] ?? '').toString();
+        secundarioDataExecucao[codigo] =
+            (sec['data_execucao'] ?? '').toString();
       }
     }
 
@@ -1002,8 +1072,7 @@ class AppComponent implements OnInit {
   }
 
   void onDocumentoSolicitanteChanged(dynamic value) {
-    documentoSolicitante =
-        _formatDocumentoSolicitante(value?.toString() ?? '');
+    documentoSolicitante = _formatDocumentoSolicitante(value?.toString() ?? '');
   }
 
   int get documentoMaskMaxLength => tipoDocumento == 'CPF' ? 14 : 18;
@@ -1117,8 +1186,8 @@ class AppComponent implements OnInit {
   }
 
   String payloadPacienteText(Laudo laudo, String key, {String fallback = ''}) {
-    final paciente =
-        Map<String, dynamic>.from((laudo.payload['paciente'] as Map?) ?? const <String, dynamic>{});
+    final paciente = Map<String, dynamic>.from(
+        (laudo.payload['paciente'] as Map?) ?? const <String, dynamic>{});
     final value = paciente[key];
     if (value == null) return fallback;
     final text = value.toString().trim();
@@ -1140,7 +1209,8 @@ class AppComponent implements OnInit {
   }
 
   List<Map<String, String>> laudoSecundarios(Laudo laudo) {
-    final raw = (laudo.payload['procedimentos_secundarios'] as List?) ?? const <dynamic>[];
+    final raw = (laudo.payload['procedimentos_secundarios'] as List?) ??
+        const <dynamic>[];
     final data = <Map<String, String>>[];
     for (final item in raw) {
       final mapped = Map<String, dynamic>.from(item as Map);
@@ -1300,9 +1370,15 @@ class AppComponent implements OnInit {
   }
 
   Future<void> _loadAdminCatalog() async {
-    adminCatalogEstabelecimentos = await _service.fetchCatalogEstabelecimentos();
-    adminCatalogPrincipais = await _service.fetchCatalogPrincipais();
-    adminCatalogSecundarios = await _service.fetchCatalogSecundarios();
+    adminCatalogEstabelecimentos = await _service.fetchCatalogEstabelecimentos(
+      includeInativos: true,
+    );
+    adminCatalogPrincipais = await _service.fetchCatalogPrincipais(
+      includeInativos: true,
+    );
+    adminCatalogSecundarios = await _service.fetchCatalogSecundarios(
+      includeInativos: true,
+    );
   }
 
   Future<void> createAdminEstabelecimento() async {
@@ -1338,7 +1414,8 @@ class AppComponent implements OnInit {
   }
 
   Future<void> createAdminSecundario() async {
-    if (adminNovoSecCodigo.trim().isEmpty || adminNovoSecDescricao.trim().isEmpty) {
+    if (adminNovoSecCodigo.trim().isEmpty ||
+        adminNovoSecDescricao.trim().isEmpty) {
       errorMessage = 'Informe codigo e descricao do procedimento secundario.';
       return;
     }
@@ -1366,7 +1443,8 @@ class AppComponent implements OnInit {
   }
 
   Future<void> createAdminPrincipal() async {
-    if (adminNovoPriCodigo.trim().isEmpty || adminNovoPriDescricao.trim().isEmpty) {
+    if (adminNovoPriCodigo.trim().isEmpty ||
+        adminNovoPriDescricao.trim().isEmpty) {
       errorMessage = 'Informe codigo e descricao do procedimento principal.';
       return;
     }
@@ -1398,6 +1476,165 @@ class AppComponent implements OnInit {
     }
   }
 
+  void startEditAdminEstabelecimento(Map<String, dynamic> est) {
+    adminEditEstId = idAsInt(est['id']);
+    adminEditEstNome = (est['nome'] ?? '').toString();
+    adminEditEstCnes = (est['cnes'] ?? '').toString();
+    adminEditEstTipo = (est['tipo'] ?? 'solicitante').toString();
+  }
+
+  void cancelEditAdminEstabelecimento() {
+    adminEditEstId = null;
+    adminEditEstNome = '';
+    adminEditEstCnes = '';
+    adminEditEstTipo = 'solicitante';
+  }
+
+  Future<void> saveEditAdminEstabelecimento() async {
+    if (adminEditEstId == null) return;
+    if (adminEditEstNome.trim().isEmpty) {
+      errorMessage = 'Informe o nome do estabelecimento.';
+      return;
+    }
+    try {
+      await _service.updateCatalogEstabelecimento(
+        adminEditEstId!,
+        nome: adminEditEstNome.trim(),
+        cnes: adminEditEstCnes.trim(),
+        tipo: adminEditEstTipo.trim(),
+      );
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      cancelEditAdminEstabelecimento();
+      successMessage = 'Estabelecimento atualizado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> setAdminEstabelecimentoAtivo(int id, bool ativo) async {
+    try {
+      await _service.setCatalogEstabelecimentoAtivo(id, ativo);
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = ativo
+          ? 'Estabelecimento ativado com sucesso.'
+          : 'Estabelecimento desativado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  void startEditAdminSecundario(Map<String, dynamic> sec) {
+    adminEditSecId = idAsInt(sec['id']);
+    adminEditSecCodigo = (sec['codigo_sigtap'] ?? '').toString();
+    adminEditSecDescricao = (sec['descricao'] ?? '').toString();
+  }
+
+  void cancelEditAdminSecundario() {
+    adminEditSecId = null;
+    adminEditSecCodigo = '';
+    adminEditSecDescricao = '';
+  }
+
+  Future<void> saveEditAdminSecundario() async {
+    if (adminEditSecId == null) return;
+    if (adminEditSecCodigo.trim().isEmpty ||
+        adminEditSecDescricao.trim().isEmpty) {
+      errorMessage = 'Informe codigo e descricao do procedimento secundario.';
+      return;
+    }
+    try {
+      await _service.updateCatalogProcedimento(
+        adminEditSecId!,
+        codigoSigtap: adminEditSecCodigo.trim(),
+        descricao: adminEditSecDescricao.trim(),
+      );
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      cancelEditAdminSecundario();
+      successMessage = 'Procedimento secundario atualizado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> setAdminSecundarioAtivo(int id, bool ativo) async {
+    try {
+      await _service.setCatalogProcedimentoAtivo(id, ativo);
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = ativo
+          ? 'Procedimento secundario ativado com sucesso.'
+          : 'Procedimento secundario desativado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  void startEditAdminPrincipal(Map<String, dynamic> pri) {
+    adminEditPriId = idAsInt(pri['id']);
+    adminEditPriCodigo = (pri['codigo_sigtap'] ?? '').toString();
+    adminEditPriDescricao = (pri['descricao'] ?? '').toString();
+    adminEditPriSecIds.clear();
+    final secundarios = (pri['secundarios'] as List?) ?? const <dynamic>[];
+    for (final raw in secundarios) {
+      final sec = Map<String, dynamic>.from(raw as Map);
+      adminEditPriSecIds.add(idAsInt(sec['id']));
+    }
+  }
+
+  void cancelEditAdminPrincipal() {
+    adminEditPriId = null;
+    adminEditPriCodigo = '';
+    adminEditPriDescricao = '';
+    adminEditPriSecIds.clear();
+  }
+
+  void toggleAdminEditPriSec(int id, bool checked) {
+    if (checked) {
+      adminEditPriSecIds.add(id);
+    } else {
+      adminEditPriSecIds.remove(id);
+    }
+  }
+
+  Future<void> saveEditAdminPrincipal() async {
+    if (adminEditPriId == null) return;
+    if (adminEditPriCodigo.trim().isEmpty ||
+        adminEditPriDescricao.trim().isEmpty) {
+      errorMessage = 'Informe codigo e descricao do procedimento principal.';
+      return;
+    }
+    try {
+      await _service.updateCatalogProcedimento(
+        adminEditPriId!,
+        codigoSigtap: adminEditPriCodigo.trim(),
+        descricao: adminEditPriDescricao.trim(),
+        secundariosIds: adminEditPriSecIds.toList(),
+      );
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      cancelEditAdminPrincipal();
+      successMessage = 'Procedimento principal atualizado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> setAdminPrincipalAtivo(int id, bool ativo) async {
+    try {
+      await _service.setCatalogProcedimentoAtivo(id, ativo);
+      await _loadAdminCatalog();
+      await _loadCatalogData();
+      successMessage = ativo
+          ? 'Procedimento principal ativado com sucesso.'
+          : 'Procedimento principal desativado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
   void startViewAndPrint(Laudo laudo) {
     startView(laudo);
     Future<void>.delayed(const Duration(milliseconds: 60), () {
@@ -1406,7 +1643,9 @@ class AppComponent implements OnInit {
   }
 
   Future<void> deactivateAdminUserByValue(dynamic idValue) async {
-    final id = (idValue is num) ? idValue.toInt() : int.tryParse(idValue?.toString() ?? '');
+    final id = (idValue is num)
+        ? idValue.toInt()
+        : int.tryParse(idValue?.toString() ?? '');
     if (id == null) return;
     await deactivateAdminUser(id);
   }
@@ -1474,7 +1713,8 @@ class AppComponent implements OnInit {
   }
 
   int monthlyBarHeight(int count) {
-    final maxValue = monthlyData.fold<int>(0, (maxV, item) => max(maxV, item.count));
+    final maxValue =
+        monthlyData.fold<int>(0, (maxV, item) => max(maxV, item.count));
     if (maxValue == 0) return 4;
     final height = ((count / maxValue) * 100).round();
     return max(4, height);
@@ -1526,7 +1766,8 @@ class AppComponent implements OnInit {
     return '${value.year}-$month';
   }
 
-  Estabelecimento? _estabelecimentoByCnes(String cnes, List<Estabelecimento> list) {
+  Estabelecimento? _estabelecimentoByCnes(
+      String cnes, List<Estabelecimento> list) {
     for (final item in list) {
       if (item.cnes == cnes) {
         return item;
@@ -1613,7 +1854,8 @@ class AppComponent implements OnInit {
     final chunks = <String>[];
     for (final size in groups) {
       if (start >= truncated.length) break;
-      final end = (start + size > truncated.length) ? truncated.length : start + size;
+      final end =
+          (start + size > truncated.length) ? truncated.length : start + size;
       chunks.add(truncated.substring(start, end));
       start = end;
     }
@@ -1649,7 +1891,8 @@ class AppComponent implements OnInit {
     final parts = <String>[];
 
     if (truncated.isEmpty) return '';
-    final p1 = truncated.substring(0, truncated.length >= 2 ? 2 : truncated.length);
+    final p1 =
+        truncated.substring(0, truncated.length >= 2 ? 2 : truncated.length);
     parts.add(p1);
     if (truncated.length <= 2) return parts.first;
 
@@ -1678,11 +1921,13 @@ class AppComponent implements OnInit {
     final letter = letterMatch.group(0)!;
     final afterLetter = raw.substring(letterMatch.start + 1);
     final baseTail = afterLetter.replaceAll(RegExp(r'[^0-9A-Z]'), '');
-    final base = '$letter${baseTail.length >= 2 ? baseTail.substring(0, 2) : baseTail}';
+    final base =
+        '$letter${baseTail.length >= 2 ? baseTail.substring(0, 2) : baseTail}';
     if (base.length < 3) return base;
 
     final restSource = baseTail.length > 2 ? baseTail.substring(2) : '';
-    final rest = restSource.length > 2 ? restSource.substring(0, 2) : restSource;
+    final rest =
+        restSource.length > 2 ? restSource.substring(0, 2) : restSource;
     return rest.isEmpty ? base : '$base.$rest';
   }
 
@@ -1693,4 +1938,3 @@ class AppComponent implements OnInit {
     return _formatCartaoSus(input);
   }
 }
-

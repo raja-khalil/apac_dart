@@ -10,7 +10,13 @@ class CatalogController {
 
   Future<Response> listEstabelecimentos(Request request) async {
     final tipo = request.url.queryParameters['tipo'];
-    final data = await _service.listEstabelecimentos(tipo: tipo);
+    final includeInativos =
+        (request.url.queryParameters['include_inativos'] ?? '').toLowerCase() ==
+            'true';
+    final data = await _service.listEstabelecimentos(
+      tipo: tipo,
+      includeInativos: includeInativos,
+    );
     return _json({'data': data});
   }
 
@@ -47,13 +53,52 @@ class CatalogController {
     return _json({'message': 'Removido com sucesso.'});
   }
 
+  Future<Response> updateEstabelecimento(Request request, String id) async {
+    final denied = _forbiddenIfNotAdmin(request);
+    if (denied != null) return denied;
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) return _json({'error': 'ID invalido.'}, status: 400);
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final item = await _service.updateEstabelecimento(
+      id: parsedId,
+      nome: payload['nome']?.toString(),
+      cnes: payload['cnes']?.toString(),
+      tipo: payload['tipo']?.toString(),
+    );
+    if (item == null) return _json({'error': 'Nao encontrado.'}, status: 404);
+    return _json({'data': item});
+  }
+
+  Future<Response> setEstabelecimentoStatus(
+    Request request,
+    String id,
+  ) async {
+    final denied = _forbiddenIfNotAdmin(request);
+    if (denied != null) return denied;
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) return _json({'error': 'ID invalido.'}, status: 400);
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final ativo = payload['ativo'] == true;
+    final ok = await _service.setEstabelecimentoAtivo(parsedId, ativo);
+    if (!ok) return _json({'error': 'Nao encontrado.'}, status: 404);
+    return _json({'message': ativo ? 'Ativado.' : 'Desativado.'});
+  }
+
   Future<Response> listPrincipais(Request request) async {
-    final data = await _service.listPrincipais();
+    final includeInativos =
+        (request.url.queryParameters['include_inativos'] ?? '').toLowerCase() ==
+            'true';
+    final data = await _service.listPrincipais(includeInativos: includeInativos);
     return _json({'data': data});
   }
 
   Future<Response> listSecundarios(Request request) async {
-    final data = await _service.listSecundarios();
+    final includeInativos =
+        (request.url.queryParameters['include_inativos'] ?? '').toLowerCase() ==
+            'true';
+    final data = await _service.listSecundarios(includeInativos: includeInativos);
     return _json({'data': data});
   }
 
@@ -114,6 +159,42 @@ class CatalogController {
     return _json({'message': 'Removido com sucesso.'});
   }
 
+  Future<Response> updateProcedimento(Request request, String id) async {
+    final denied = _forbiddenIfNotAdmin(request);
+    if (denied != null) return denied;
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) return _json({'error': 'ID invalido.'}, status: 400);
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final secundariosIds = payload.containsKey('secundarios_ids')
+        ? ((payload['secundarios_ids'] as List?) ?? const <dynamic>[])
+            .map((e) => int.tryParse(e.toString()) ?? 0)
+            .where((e) => e > 0)
+            .toList()
+        : null;
+    final item = await _service.updateProcedimento(
+      id: parsedId,
+      codigoSigtap: payload['codigo_sigtap']?.toString(),
+      descricao: payload['descricao']?.toString(),
+      secundariosIds: secundariosIds,
+    );
+    if (item == null) return _json({'error': 'Nao encontrado.'}, status: 404);
+    return _json({'data': item});
+  }
+
+  Future<Response> setProcedimentoStatus(Request request, String id) async {
+    final denied = _forbiddenIfNotAdmin(request);
+    if (denied != null) return denied;
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) return _json({'error': 'ID invalido.'}, status: 400);
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final ativo = payload['ativo'] == true;
+    final ok = await _service.setProcedimentoAtivo(parsedId, ativo);
+    if (!ok) return _json({'error': 'Nao encontrado.'}, status: 404);
+    return _json({'message': ativo ? 'Ativado.' : 'Desativado.'});
+  }
+
   Response? _forbiddenIfNotAdmin(Request request) {
     final roles = (request.context['auth_roles'] as List?)
             ?.map((e) => e.toString().trim().toLowerCase())
@@ -147,4 +228,3 @@ class CatalogController {
     );
   }
 }
-
