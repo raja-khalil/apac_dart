@@ -1370,15 +1370,168 @@ class AppComponent implements OnInit {
   }
 
   Future<void> _loadAdminCatalog() async {
-    adminCatalogEstabelecimentos = await _service.fetchCatalogEstabelecimentos(
+    final estApi = await _service.fetchCatalogEstabelecimentos(
       includeInativos: true,
     );
-    adminCatalogPrincipais = await _service.fetchCatalogPrincipais(
+    final priApi = await _service.fetchCatalogPrincipais(
       includeInativos: true,
     );
-    adminCatalogSecundarios = await _service.fetchCatalogSecundarios(
+    final secApi = await _service.fetchCatalogSecundarios(
       includeInativos: true,
     );
+
+    final estFallback = _fallbackAdminEstabelecimentos();
+    final secFallback = _fallbackAdminSecundarios();
+    final priFallback = _fallbackAdminPrincipais(secFallback);
+
+    adminCatalogEstabelecimentos = _mergeCatalogByKey(
+      estApi,
+      estFallback,
+      (m) =>
+          '${(m['cnes'] ?? '').toString().trim()}|${(m['nome'] ?? '').toString().trim().toLowerCase()}',
+    );
+    adminCatalogSecundarios = _mergeCatalogByKey(
+      secApi,
+      secFallback,
+      (m) => (m['codigo_sigtap'] ?? '').toString().trim().toLowerCase(),
+    );
+    adminCatalogPrincipais = _mergeCatalogByKey(
+      priApi,
+      priFallback,
+      (m) => (m['codigo_sigtap'] ?? '').toString().trim().toLowerCase(),
+    );
+  }
+
+  List<Map<String, dynamic>> _mergeCatalogByKey(
+    List<Map<String, dynamic>> primary,
+    List<Map<String, dynamic>> fallback,
+    String Function(Map<String, dynamic>) keyOf,
+  ) {
+    final merged = <String, Map<String, dynamic>>{};
+    for (final item in fallback) {
+      merged[keyOf(item)] = Map<String, dynamic>.from(item);
+    }
+    for (final item in primary) {
+      final normalized = Map<String, dynamic>.from(item);
+      normalized['readonly'] = false;
+      merged[keyOf(normalized)] = normalized;
+    }
+    return merged.values.toList();
+  }
+
+  List<Map<String, dynamic>> _fallbackAdminEstabelecimentos() {
+    final byKey = <String, Map<String, dynamic>>{};
+    var id = -1;
+
+    for (final est in estabelecimentosSolicitantes) {
+      final key = '${est.cnes}|${est.nome}'.toLowerCase();
+      final existing = byKey[key];
+      if (existing == null) {
+        byKey[key] = <String, dynamic>{
+          'id': id--,
+          'nome': est.nome,
+          'cnes': est.cnes,
+          'tipo': 'solicitante',
+          'ativo': true,
+          'readonly': true,
+        };
+      } else if ((existing['tipo'] ?? '') == 'executante') {
+        existing['tipo'] = 'ambos';
+      }
+    }
+
+    for (final est in estabelecimentosExecutantes) {
+      final key = '${est.cnes}|${est.nome}'.toLowerCase();
+      final existing = byKey[key];
+      if (existing == null) {
+        byKey[key] = <String, dynamic>{
+          'id': id--,
+          'nome': est.nome,
+          'cnes': est.cnes,
+          'tipo': 'executante',
+          'ativo': true,
+          'readonly': true,
+        };
+      } else if ((existing['tipo'] ?? '') == 'solicitante') {
+        existing['tipo'] = 'ambos';
+      }
+    }
+
+    final list = byKey.values.toList();
+    list.sort((a, b) {
+      final an = (a['nome'] ?? '').toString().toLowerCase();
+      final bn = (b['nome'] ?? '').toString().toLowerCase();
+      return an.compareTo(bn);
+    });
+    return list;
+  }
+
+  List<Map<String, dynamic>> _fallbackAdminSecundarios() {
+    final byCode = <String, Map<String, dynamic>>{};
+    var id = -200000;
+    for (final oci in ociProcedimentos) {
+      for (final sec in oci.secundarios) {
+        final key = sec.codigo.trim().toLowerCase();
+        byCode.putIfAbsent(
+          key,
+          () => <String, dynamic>{
+            'id': id--,
+            'codigo_sigtap': sec.codigo,
+            'descricao': sec.nome,
+            'tipo': 'secundario',
+            'ativo': true,
+            'readonly': true,
+          },
+        );
+      }
+    }
+    final list = byCode.values.toList();
+    list.sort((a, b) {
+      final ac = (a['codigo_sigtap'] ?? '').toString();
+      final bc = (b['codigo_sigtap'] ?? '').toString();
+      return ac.compareTo(bc);
+    });
+    return list;
+  }
+
+  List<Map<String, dynamic>> _fallbackAdminPrincipais(
+    List<Map<String, dynamic>> secundariosFallback,
+  ) {
+    final secByCode = <String, Map<String, dynamic>>{};
+    for (final sec in secundariosFallback) {
+      secByCode[(sec['codigo_sigtap'] ?? '').toString().trim().toLowerCase()] =
+          sec;
+    }
+
+    final list = <Map<String, dynamic>>[];
+    var id = -100000;
+    for (final oci in ociProcedimentos) {
+      final secundarios = <Map<String, dynamic>>[];
+      for (final sec in oci.secundarios) {
+        final row = secByCode[sec.codigo.trim().toLowerCase()];
+        secundarios.add(<String, dynamic>{
+          'id': row != null ? idAsInt(row['id']) : 0,
+          'codigo_sigtap': sec.codigo,
+          'descricao': sec.nome,
+          'readonly': true,
+        });
+      }
+      list.add(<String, dynamic>{
+        'id': id--,
+        'codigo_sigtap': oci.codigo,
+        'descricao': oci.nome,
+        'tipo': 'principal',
+        'ativo': true,
+        'readonly': true,
+        'secundarios': secundarios,
+      });
+    }
+    list.sort((a, b) {
+      final ac = (a['codigo_sigtap'] ?? '').toString();
+      final bc = (b['codigo_sigtap'] ?? '').toString();
+      return ac.compareTo(bc);
+    });
+    return list;
   }
 
   Future<void> createAdminEstabelecimento() async {
@@ -1694,6 +1847,16 @@ class AppComponent implements OnInit {
   }
 
   bool isAtivo(dynamic value) => value == true || value == 1;
+
+  bool isCatalogReadOnly(Map<String, dynamic> item) => item['readonly'] == true;
+
+  String catalogStatusLabel(Map<String, dynamic> item) {
+    final base = isAtivo(item['ativo']) ? 'Ativo' : 'Inativo';
+    if (isCatalogReadOnly(item)) {
+      return '$base (referencia)';
+    }
+    return base;
+  }
 
   String secundariosCodesText(dynamic list) {
     final rows = (list as List?) ?? const <dynamic>[];

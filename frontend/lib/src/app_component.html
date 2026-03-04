@@ -619,15 +619,16 @@
               <td>{{ est['nome'] }}</td>
               <td>{{ est['cnes'] }}</td>
               <td>{{ est['tipo'] }}</td>
-              <td>{{ isAtivo(est['ativo']) ? 'Ativo' : 'Inativo' }}</td>
+              <td>{{ catalogStatusLabel(est) }}</td>
               <td>
                 <div class="list-actions">
-                  <button type="button" class="secondary" (click)="startEditAdminEstabelecimento(est)">Editar</button>
+                  <button type="button" class="secondary" (click)="startEditAdminEstabelecimento(est)" [disabled]="isCatalogReadOnly(est)">Editar</button>
                   <button
                     type="button"
                     class="secondary"
                     *ngIf="!isAtivo(est['ativo'])"
                     (click)="setAdminEstabelecimentoAtivo(idAsInt(est['id']), true)"
+                    [disabled]="isCatalogReadOnly(est)"
                   >
                     Ativar
                   </button>
@@ -636,10 +637,11 @@
                     class="secondary"
                     *ngIf="isAtivo(est['ativo'])"
                     (click)="setAdminEstabelecimentoAtivo(idAsInt(est['id']), false)"
+                    [disabled]="isCatalogReadOnly(est)"
                   >
                     Desativar
                   </button>
-                  <button type="button" class="danger" (click)="removeAdminEstabelecimento(idAsInt(est['id']))">Excluir</button>
+                  <button type="button" class="danger" (click)="removeAdminEstabelecimento(idAsInt(est['id']))" [disabled]="isCatalogReadOnly(est)">Excluir</button>
                 </div>
               </td>
             </tr>
@@ -677,15 +679,16 @@
             <tr *ngFor="let sec of adminCatalogSecundarios">
               <td>{{ sec['codigo_sigtap'] }}</td>
               <td>{{ sec['descricao'] }}</td>
-              <td>{{ isAtivo(sec['ativo']) ? 'Ativo' : 'Inativo' }}</td>
+              <td>{{ catalogStatusLabel(sec) }}</td>
               <td>
                 <div class="list-actions">
-                  <button type="button" class="secondary" (click)="startEditAdminSecundario(sec)">Editar</button>
+                  <button type="button" class="secondary" (click)="startEditAdminSecundario(sec)" [disabled]="isCatalogReadOnly(sec)">Editar</button>
                   <button
                     type="button"
                     class="secondary"
                     *ngIf="!isAtivo(sec['ativo'])"
                     (click)="setAdminSecundarioAtivo(idAsInt(sec['id']), true)"
+                    [disabled]="isCatalogReadOnly(sec)"
                   >
                     Ativar
                   </button>
@@ -694,10 +697,11 @@
                     class="secondary"
                     *ngIf="isAtivo(sec['ativo'])"
                     (click)="setAdminSecundarioAtivo(idAsInt(sec['id']), false)"
+                    [disabled]="isCatalogReadOnly(sec)"
                   >
                     Desativar
                   </button>
-                  <button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(sec['id']))">Excluir</button>
+                  <button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(sec['id']))" [disabled]="isCatalogReadOnly(sec)">Excluir</button>
                 </div>
               </td>
             </tr>
@@ -759,15 +763,16 @@
               <td>{{ p['codigo_sigtap'] }}</td>
               <td>{{ p['descricao'] }}</td>
               <td>{{ secundariosCodesText(p['secundarios']) }}</td>
-              <td>{{ isAtivo(p['ativo']) ? 'Ativo' : 'Inativo' }}</td>
+              <td>{{ catalogStatusLabel(p) }}</td>
               <td>
                 <div class="list-actions">
-                  <button type="button" class="secondary" (click)="startEditAdminPrincipal(p)">Editar</button>
+                  <button type="button" class="secondary" (click)="startEditAdminPrincipal(p)" [disabled]="isCatalogReadOnly(p)">Editar</button>
                   <button
                     type="button"
                     class="secondary"
                     *ngIf="!isAtivo(p['ativo'])"
                     (click)="setAdminPrincipalAtivo(idAsInt(p['id']), true)"
+                    [disabled]="isCatalogReadOnly(p)"
                   >
                     Ativar
                   </button>
@@ -776,10 +781,11 @@
                     class="secondary"
                     *ngIf="isAtivo(p['ativo'])"
                     (click)="setAdminPrincipalAtivo(idAsInt(p['id']), false)"
+                    [disabled]="isCatalogReadOnly(p)"
                   >
                     Desativar
                   </button>
-                  <button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(p['id']))">Excluir</button>
+                  <button type="button" class="danger" (click)="removeAdminProcedimento(idAsInt(p['id']))" [disabled]="isCatalogReadOnly(p)">Excluir</button>
                 </div>
               </td>
             </tr>
