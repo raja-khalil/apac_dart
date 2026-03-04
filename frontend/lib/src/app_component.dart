@@ -219,6 +219,7 @@ class AppComponent implements OnInit {
       _service.hasRole('admin') ||
       _service.hasRole('operador') ||
       _service.hasRole('gestor');
+  bool get catalogApiAvailable => _service.catalogRoutesAvailable;
   List<Map<String, dynamic>> get adminSecundariosAssociaveis {
     return adminCatalogSecundarios
         .where((s) => idAsInt(s['id']) > 0 && !isCatalogReadOnly(s))

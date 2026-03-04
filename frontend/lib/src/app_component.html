@@ -549,6 +549,9 @@
         <div>
           <h1>Catalogos do Novo Laudo</h1>
           <p>Gerencie listas suspensas de estabelecimentos e procedimentos.</p>
+          <p class="required-hint" *ngIf="!catalogApiAvailable">
+            API de catalogo nao encontrada no backend atual. Os dados abaixo estao em modo referencia e nao podem ser persistidos ate reiniciar o backend atualizado.
+          </p>
         </div>
       </div>
 
@@ -585,7 +588,7 @@
             </select>
           </label>
           <div class="list-actions">
-            <button type="button" (click)="createAdminEstabelecimento()">Adicionar</button>
+            <button type="button" (click)="createAdminEstabelecimento()" [disabled]="!catalogApiAvailable">Adicionar</button>
           </div>
         </div>
         <div class="admin-form-grid" *ngIf="adminEditEstId != null">
@@ -600,7 +603,7 @@
             </select>
           </label>
           <div class="list-actions">
-            <button type="button" (click)="saveEditAdminEstabelecimento()">Salvar</button>
+            <button type="button" (click)="saveEditAdminEstabelecimento()" [disabled]="!catalogApiAvailable">Salvar</button>
             <button type="button" class="secondary" (click)="cancelEditAdminEstabelecimento()">Cancelar</button>
           </div>
         </div>
@@ -655,7 +658,7 @@
           <label>Codigo SIGTAP <input type="text" [ngModel]="adminNovoSecCodigo" (ngModelChange)="onAdminNovoSecCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
           <label>Descricao <input type="text" [(ngModel)]="adminNovoSecDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
-            <button type="button" (click)="createAdminSecundario()">Adicionar</button>
+            <button type="button" (click)="createAdminSecundario()" [disabled]="!catalogApiAvailable">Adicionar</button>
           </div>
         </div>
         <div class="admin-roles">
@@ -672,7 +675,7 @@
           <label>Editar codigo <input type="text" [ngModel]="adminEditSecCodigo" (ngModelChange)="onAdminEditSecCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
           <label>Editar descricao <input type="text" [(ngModel)]="adminEditSecDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
-            <button type="button" (click)="saveEditAdminSecundario()">Salvar</button>
+            <button type="button" (click)="saveEditAdminSecundario()" [disabled]="!catalogApiAvailable">Salvar</button>
             <button type="button" class="secondary" (click)="cancelEditAdminSecundario()">Cancelar</button>
           </div>
         </div>
@@ -735,7 +738,7 @@
           <label>Codigo SIGTAP <input type="text" [ngModel]="adminNovoPriCodigo" (ngModelChange)="onAdminNovoPriCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
           <label>Descricao <input type="text" [(ngModel)]="adminNovoPriDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
-            <button type="button" (click)="createAdminPrincipal()">Adicionar</button>
+            <button type="button" (click)="createAdminPrincipal()" [disabled]="!catalogApiAvailable">Adicionar</button>
           </div>
         </div>
         <div class="admin-roles">
@@ -753,7 +756,7 @@
           <label>Editar codigo <input type="text" [ngModel]="adminEditPriCodigo" (ngModelChange)="onAdminEditPriCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
           <label>Editar descricao <input type="text" [(ngModel)]="adminEditPriDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
-            <button type="button" (click)="saveEditAdminPrincipal()">Salvar</button>
+            <button type="button" (click)="saveEditAdminPrincipal()" [disabled]="!catalogApiAvailable">Salvar</button>
             <button type="button" class="secondary" (click)="cancelEditAdminPrincipal()">Cancelar</button>
           </div>
         </div>

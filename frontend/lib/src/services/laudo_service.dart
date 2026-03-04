@@ -38,11 +38,13 @@ class LaudoService {
   String? _accessToken;
   String? _tokenExpiresAt;
   Map<String, dynamic>? _currentUser;
+  bool _catalogRoutesMissing = false;
   void Function()? _onUnauthorized;
 
   String? get activeBaseUrl => _resolvedBaseUrl;
   bool get isAuthenticated => _accessToken != null && _accessToken!.isNotEmpty;
   Map<String, dynamic>? get currentUser => _currentUser;
+  bool get catalogRoutesAvailable => !_catalogRoutesMissing;
   List<String> get currentRoles =>
       ((currentUser?['roles'] as List?) ?? const <dynamic>[])
           .map((e) => e.toString().trim().toLowerCase())
@@ -464,11 +466,13 @@ class LaudoService {
         throw UnauthorizedException();
       }
       if (response.statusCode == 404) {
+        _catalogRoutesMissing = true;
         return <Map<String, dynamic>>[];
       }
       if (response.statusCode != 200) {
         throw Exception(_extractError(response.body, response.statusCode));
       }
+      _catalogRoutesMissing = false;
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
       final data = (payload['data'] as List?) ?? const <dynamic>[];
       return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -493,11 +497,13 @@ class LaudoService {
         throw UnauthorizedException();
       }
       if (response.statusCode == 404) {
+        _catalogRoutesMissing = true;
         return <Map<String, dynamic>>[];
       }
       if (response.statusCode != 200) {
         throw Exception(_extractError(response.body, response.statusCode));
       }
+      _catalogRoutesMissing = false;
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
       final data = (payload['data'] as List?) ?? const <dynamic>[];
       return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -522,11 +528,13 @@ class LaudoService {
         throw UnauthorizedException();
       }
       if (response.statusCode == 404) {
+        _catalogRoutesMissing = true;
         return <Map<String, dynamic>>[];
       }
       if (response.statusCode != 200) {
         throw Exception(_extractError(response.body, response.statusCode));
       }
+      _catalogRoutesMissing = false;
       final payload = jsonDecode(response.body) as Map<String, dynamic>;
       final data = (payload['data'] as List?) ?? const <dynamic>[];
       return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
