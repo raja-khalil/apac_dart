@@ -431,6 +431,9 @@ class LaudoService {
         _handleUnauthorized();
         throw UnauthorizedException();
       }
+      if (response.statusCode == 404) {
+        return <Map<String, dynamic>>[];
+      }
       if (response.statusCode != 200) {
         throw Exception(_extractError(response.body, response.statusCode));
       }
@@ -460,6 +463,9 @@ class LaudoService {
         _handleUnauthorized();
         throw UnauthorizedException();
       }
+      if (response.statusCode == 404) {
+        return <Map<String, dynamic>>[];
+      }
       if (response.statusCode != 200) {
         throw Exception(_extractError(response.body, response.statusCode));
       }
@@ -486,6 +492,9 @@ class LaudoService {
         _handleUnauthorized();
         throw UnauthorizedException();
       }
+      if (response.statusCode == 404) {
+        return <Map<String, dynamic>>[];
+      }
       if (response.statusCode != 200) {
         throw Exception(_extractError(response.body, response.statusCode));
       }
@@ -511,6 +520,9 @@ class LaudoService {
       if (response.statusCode == 401) {
         _handleUnauthorized();
         throw UnauthorizedException();
+      }
+      if (response.statusCode == 404) {
+        return <Map<String, dynamic>>[];
       }
       if (response.statusCode != 200) {
         throw Exception(_extractError(response.body, response.statusCode));
@@ -876,7 +888,13 @@ class LaudoService {
         return message;
       }
     } catch (_) {
+      if (fallbackCode == 404) {
+        return 'Rota nao encontrada na API (404). Reinicie o backend atualizado em 8081.';
+      }
       return 'Falha na requisicao ($fallbackCode).';
+    }
+    if (fallbackCode == 404) {
+      return 'Rota nao encontrada na API (404). Reinicie o backend atualizado em 8081.';
     }
     return 'Falha na requisicao ($fallbackCode).';
   }
