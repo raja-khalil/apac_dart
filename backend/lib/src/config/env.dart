@@ -14,7 +14,7 @@ class EnvConfig {
   static String get serverHost =>
       Platform.environment['SERVER_HOST'] ?? '0.0.0.0';
   static int get serverPort =>
-      int.tryParse(Platform.environment['SERVER_PORT'] ?? '8080') ?? 8080;
+      int.tryParse(Platform.environment['SERVER_PORT'] ?? '8081') ?? 8081;
 }
 
 class Database {
