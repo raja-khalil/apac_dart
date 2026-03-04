@@ -444,7 +444,7 @@ class LaudoService {
 
   Future<String?> _resolveBaseUrl() async {
     if (_resolvedBaseUrl != null) {
-      final ok = await _ping(_resolvedBaseUrl!);
+      final ok = await _isValidApiEndpoint(_resolvedBaseUrl!);
       if (ok) return _resolvedBaseUrl;
       _resolvedBaseUrl = null;
     }
@@ -456,7 +456,7 @@ class LaudoService {
     final candidates = _candidateBaseUrls(protocol, host, port);
 
     for (final candidate in candidates.toSet()) {
-      final ok = await _ping(candidate);
+      final ok = await _isValidApiEndpoint(candidate);
       if (ok) {
         _resolvedBaseUrl = candidate;
         return _resolvedBaseUrl;
@@ -491,6 +491,28 @@ class LaudoService {
       final payload = jsonDecode(response.body);
       if (payload is! Map<String, dynamic>) return false;
       return (payload['status'] ?? '').toString().toLowerCase() == 'ok';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _isValidApiEndpoint(String baseUrl) async {
+    final healthOk = await _ping(baseUrl);
+    if (!healthOk) return false;
+
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/login'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode(const {'email': '', 'senha': ''}),
+          )
+          .timeout(const Duration(seconds: 2));
+
+      // Endpoint exists in this API if it returns validation/auth codes.
+      return response.statusCode == 400 ||
+          response.statusCode == 401 ||
+          response.statusCode == 422;
     } catch (_) {
       return false;
     }
