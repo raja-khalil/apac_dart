@@ -470,11 +470,11 @@ class LaudoService {
     return <String>[
       if (port == '8080') 'http://127.0.0.1:8081/api',
       if (port == '8081') 'http://127.0.0.1:8081/api',
-      '$protocol//$host/api',
       'http://127.0.0.1:8081/api',
       'http://127.0.0.1:8080/api',
       'http://localhost:8081/api',
       'http://localhost:8080/api',
+      '$protocol//$host/api',
     ];
   }
 
@@ -483,7 +483,14 @@ class LaudoService {
       final response = await _client
           .get(Uri.parse('$baseUrl/health'))
           .timeout(const Duration(seconds: 2));
-      return response.statusCode == 200;
+      if (response.statusCode != 200) return false;
+
+      final contentType = (response.headers['content-type'] ?? '').toLowerCase();
+      if (!contentType.contains('application/json')) return false;
+
+      final payload = jsonDecode(response.body);
+      if (payload is! Map<String, dynamic>) return false;
+      return (payload['status'] ?? '').toString().toLowerCase() == 'ok';
     } catch (_) {
       return false;
     }
