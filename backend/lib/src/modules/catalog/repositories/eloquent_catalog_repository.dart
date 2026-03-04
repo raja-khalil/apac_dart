@@ -6,6 +6,28 @@ class EloquentCatalogRepository implements ICatalogRepository {
 
   final Connection _db;
 
+  String _normalizeCnes(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 7) return digits.substring(0, 7);
+    return digits;
+  }
+
+  String _normalizeSigtap(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    final truncated = digits.length > 10 ? digits.substring(0, 10) : digits;
+    if (truncated.length <= 2) return truncated;
+    if (truncated.length <= 4) {
+      return '${truncated.substring(0, 2)}.${truncated.substring(2)}';
+    }
+    if (truncated.length <= 6) {
+      return '${truncated.substring(0, 2)}.${truncated.substring(2, 4)}.${truncated.substring(4)}';
+    }
+    if (truncated.length <= 9) {
+      return '${truncated.substring(0, 2)}.${truncated.substring(2, 4)}.${truncated.substring(4, 6)}.${truncated.substring(6)}';
+    }
+    return '${truncated.substring(0, 2)}.${truncated.substring(2, 4)}.${truncated.substring(4, 6)}.${truncated.substring(6, 9)}-${truncated.substring(9)}';
+  }
+
   @override
   Future<List<Map<String, dynamic>>> listEstabelecimentos({
     String? tipo,
@@ -32,7 +54,9 @@ class EloquentCatalogRepository implements ICatalogRepository {
       q = q.where('tipo', '=', normalizedTipo);
     }
     final rows = await q.orderBy('nome', 'asc').get();
-    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
   }
 
   @override
@@ -44,7 +68,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
     final now = DateTime.now().toUtc().toIso8601String();
     final id = await _db.table('estabelecimentos_v2').insertGetId({
       'nome': nome.trim(),
-      'cnes': cnes.trim(),
+      'cnes': _normalizeCnes(cnes.trim()),
       'tipo': tipo.trim().toLowerCase(),
       'ativo': true,
       'created_at': now,
@@ -52,7 +76,8 @@ class EloquentCatalogRepository implements ICatalogRepository {
     }, 'id');
     final rows = await _db
         .table('estabelecimentos_v2')
-        .select(['id', 'nome', 'cnes', 'tipo', 'ativo', 'created_at', 'updated_at'])
+        .select(
+            ['id', 'nome', 'cnes', 'tipo', 'ativo', 'created_at', 'updated_at'])
         .where('id', '=', (id as num).toInt())
         .limit(1)
         .get();
@@ -66,19 +91,25 @@ class EloquentCatalogRepository implements ICatalogRepository {
     String? cnes,
     String? tipo,
   }) async {
-    final exists = await _db.table('estabelecimentos_v2').select(['id']).where('id', '=', id).limit(1).get();
+    final exists = await _db
+        .table('estabelecimentos_v2')
+        .select(['id'])
+        .where('id', '=', id)
+        .limit(1)
+        .get();
     if ((exists as List).isEmpty) return null;
 
     final now = DateTime.now().toUtc().toIso8601String();
     final updates = <String, dynamic>{'updated_at': now};
     if (nome != null) updates['nome'] = nome.trim();
-    if (cnes != null) updates['cnes'] = cnes.trim();
+    if (cnes != null) updates['cnes'] = _normalizeCnes(cnes.trim());
     if (tipo != null) updates['tipo'] = tipo.trim().toLowerCase();
     await _db.table('estabelecimentos_v2').where('id', '=', id).update(updates);
 
     final rows = await _db
         .table('estabelecimentos_v2')
-        .select(['id', 'nome', 'cnes', 'tipo', 'ativo', 'created_at', 'updated_at'])
+        .select(
+            ['id', 'nome', 'cnes', 'tipo', 'ativo', 'created_at', 'updated_at'])
         .where('id', '=', id)
         .limit(1)
         .get();
@@ -87,7 +118,8 @@ class EloquentCatalogRepository implements ICatalogRepository {
 
   @override
   Future<bool> setEstabelecimentoAtivo(int id, bool ativo) async {
-    final affected = await _db.table('estabelecimentos_v2').where('id', '=', id).update({
+    final affected =
+        await _db.table('estabelecimentos_v2').where('id', '=', id).update({
       'ativo': ativo,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });
@@ -96,12 +128,14 @@ class EloquentCatalogRepository implements ICatalogRepository {
 
   @override
   Future<bool> deleteEstabelecimento(int id) async {
-    final affected = await _db.table('estabelecimentos_v2').where('id', '=', id).delete();
+    final affected =
+        await _db.table('estabelecimentos_v2').where('id', '=', id).delete();
     return affected > 0;
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listPrincipais({bool includeInativos = false}) async {
+  Future<List<Map<String, dynamic>>> listPrincipais(
+      {bool includeInativos = false}) async {
     dynamic query = _db
         .table('procedimentos_v2')
         .select([
@@ -124,25 +158,28 @@ class EloquentCatalogRepository implements ICatalogRepository {
     for (final raw in (principais as List)) {
       final row = Map<String, dynamic>.from(raw as Map);
       final pid = (row['id'] as num).toInt();
-      final linksQ = _db.table('procedimento_principal_secundario_v2 as rel').select([
+      final linksQ =
+          _db.table('procedimento_principal_secundario_v2 as rel').select([
         's.id as id',
         's.codigo_sigtap as codigo_sigtap',
         's.descricao as descricao',
       ])
-        ..join('procedimentos_v2 as s', 's.id', '=', 'rel.secundario_id')
-        ..where('rel.principal_id', '=', pid)
-        ..where('s.ativo', '=', true)
-        ..orderBy('s.descricao', 'asc');
+            ..join('procedimentos_v2 as s', 's.id', '=', 'rel.secundario_id')
+            ..where('rel.principal_id', '=', pid)
+            ..where('s.ativo', '=', true)
+            ..orderBy('s.descricao', 'asc');
       final links = await linksQ.get();
-      row['secundarios'] =
-          (links as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      row['secundarios'] = (links as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       result.add(row);
     }
     return result;
   }
 
   @override
-  Future<List<Map<String, dynamic>>> listSecundarios({bool includeInativos = false}) async {
+  Future<List<Map<String, dynamic>>> listSecundarios(
+      {bool includeInativos = false}) async {
     dynamic query = _db
         .table('procedimentos_v2')
         .select([
@@ -160,7 +197,9 @@ class EloquentCatalogRepository implements ICatalogRepository {
       query = query.where('ativo', '=', true);
     }
     final rows = await query.get();
-    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
   }
 
   @override
@@ -170,7 +209,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
   }) async {
     final now = DateTime.now().toUtc().toIso8601String();
     final id = await _db.table('procedimentos_v2').insertGetId({
-      'codigo_sigtap': codigoSigtap.trim(),
+      'codigo_sigtap': _normalizeSigtap(codigoSigtap.trim()),
       'descricao': descricao.trim(),
       'tipo': 'secundario',
       'ativo': true,
@@ -179,7 +218,15 @@ class EloquentCatalogRepository implements ICatalogRepository {
     }, 'id');
     final rows = await _db
         .table('procedimentos_v2')
-        .select(['id', 'codigo_sigtap', 'descricao', 'tipo', 'ativo', 'created_at', 'updated_at'])
+        .select([
+          'id',
+          'codigo_sigtap',
+          'descricao',
+          'tipo',
+          'ativo',
+          'created_at',
+          'updated_at'
+        ])
         .where('id', '=', (id as num).toInt())
         .limit(1)
         .get();
@@ -194,7 +241,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
   }) async {
     final now = DateTime.now().toUtc().toIso8601String();
     final id = await _db.table('procedimentos_v2').insertGetId({
-      'codigo_sigtap': codigoSigtap.trim(),
+      'codigo_sigtap': _normalizeSigtap(codigoSigtap.trim()),
       'descricao': descricao.trim(),
       'tipo': 'principal',
       'ativo': true,
@@ -211,7 +258,15 @@ class EloquentCatalogRepository implements ICatalogRepository {
     }
     final rows = await _db
         .table('procedimentos_v2')
-        .select(['id', 'codigo_sigtap', 'descricao', 'tipo', 'ativo', 'created_at', 'updated_at'])
+        .select([
+          'id',
+          'codigo_sigtap',
+          'descricao',
+          'tipo',
+          'ativo',
+          'created_at',
+          'updated_at'
+        ])
         .where('id', '=', principalId)
         .limit(1)
         .get();
@@ -235,7 +290,9 @@ class EloquentCatalogRepository implements ICatalogRepository {
     final tipo = ((rows.first as Map)['tipo'] ?? '').toString();
     final now = DateTime.now().toUtc().toIso8601String();
     final updates = <String, dynamic>{'updated_at': now};
-    if (codigoSigtap != null) updates['codigo_sigtap'] = codigoSigtap.trim();
+    if (codigoSigtap != null) {
+      updates['codigo_sigtap'] = _normalizeSigtap(codigoSigtap.trim());
+    }
     if (descricao != null) updates['descricao'] = descricao.trim();
     await _db.table('procedimentos_v2').where('id', '=', id).update(updates);
 
@@ -255,7 +312,15 @@ class EloquentCatalogRepository implements ICatalogRepository {
 
     final updated = await _db
         .table('procedimentos_v2')
-        .select(['id', 'codigo_sigtap', 'descricao', 'tipo', 'ativo', 'created_at', 'updated_at'])
+        .select([
+          'id',
+          'codigo_sigtap',
+          'descricao',
+          'tipo',
+          'ativo',
+          'created_at',
+          'updated_at'
+        ])
         .where('id', '=', id)
         .limit(1)
         .get();
@@ -264,11 +329,53 @@ class EloquentCatalogRepository implements ICatalogRepository {
 
   @override
   Future<bool> setProcedimentoAtivo(int id, bool ativo) async {
-    final affected = await _db.table('procedimentos_v2').where('id', '=', id).update({
+    final affected =
+        await _db.table('procedimentos_v2').where('id', '=', id).update({
       'ativo': ativo,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });
     return affected > 0;
+  }
+
+  @override
+  Future<bool> setSecundarioPrincipais(
+      int secundarioId, List<int> principaisIds) async {
+    final secRows = await _db
+        .table('procedimentos_v2')
+        .select(['id'])
+        .where('id', '=', secundarioId)
+        .where('tipo', '=', 'secundario')
+        .limit(1)
+        .get();
+    if ((secRows as List).isEmpty) return false;
+
+    await _db
+        .table('procedimento_principal_secundario_v2')
+        .where('secundario_id', '=', secundarioId)
+        .delete();
+
+    if (principaisIds.isNotEmpty) {
+      final principalRows = await _db
+          .table('procedimentos_v2')
+          .select(['id'])
+          .whereIn('id', principaisIds.toSet().toList())
+          .where('tipo', '=', 'principal')
+          .get();
+      final validPrincipalIds = (principalRows as List)
+          .map((e) => ((e as Map)['id'] as num).toInt())
+          .toSet()
+          .toList();
+      final now = DateTime.now().toUtc().toIso8601String();
+      for (final principalId in validPrincipalIds) {
+        await _db.table('procedimento_principal_secundario_v2').insert({
+          'principal_id': principalId,
+          'secundario_id': secundarioId,
+          'created_at': now,
+        });
+      }
+    }
+
+    return true;
   }
 
   @override
@@ -278,7 +385,8 @@ class EloquentCatalogRepository implements ICatalogRepository {
         .where('principal_id', '=', id)
         .orWhere('secundario_id', '=', id)
         .delete();
-    final affected = await _db.table('procedimentos_v2').where('id', '=', id).update({
+    final affected =
+        await _db.table('procedimentos_v2').where('id', '=', id).update({
       'ativo': false,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });

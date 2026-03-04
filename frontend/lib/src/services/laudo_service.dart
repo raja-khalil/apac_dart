@@ -621,11 +621,11 @@ class LaudoService {
     });
   }
 
-  Future<void> createCatalogSecundario({
+  Future<Map<String, dynamic>> createCatalogSecundario({
     required String codigoSigtap,
     required String descricao,
   }) async {
-    await _executeWithRecovery((baseUrl) async {
+    return _executeWithRecovery((baseUrl) async {
       final response = await _client
           .post(
             Uri.parse('$baseUrl/catalog/procedimentos/secundarios'),
@@ -641,7 +641,9 @@ class LaudoService {
       if (response.statusCode != 201) {
         throw Exception(_extractError(response.body, response.statusCode));
       }
-      return true;
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from(
+          (payload['data'] as Map?) ?? <String, dynamic>{});
     });
   }
 
@@ -678,6 +680,28 @@ class LaudoService {
       final response = await _client
           .delete(Uri.parse('$baseUrl/catalog/procedimentos/$id'),
               headers: _headers())
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
+  Future<void> setCatalogSecundarioPrincipais(
+      int secundarioId, List<int> principaisIds) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .patch(
+            Uri.parse(
+                '$baseUrl/catalog/procedimentos/secundarios/$secundarioId/principais'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'principais_ids': principaisIds}),
+          )
           .timeout(const Duration(seconds: 6));
       if (response.statusCode == 401) {
         _handleUnauthorized();

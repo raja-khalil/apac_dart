@@ -110,6 +110,7 @@ class AppComponent implements OnInit {
   String adminNovoEstTipo = 'solicitante';
   String adminNovoSecCodigo = '';
   String adminNovoSecDescricao = '';
+  final Set<int> adminNovoSecPrincipalIds = <int>{};
   String adminNovoPriCodigo = '';
   String adminNovoPriDescricao = '';
   final Set<int> adminNovoPriSecIds = <int>{};
@@ -122,6 +123,7 @@ class AppComponent implements OnInit {
   int? adminEditSecId;
   String adminEditSecCodigo = '';
   String adminEditSecDescricao = '';
+  final Set<int> adminEditSecPrincipalIds = <int>{};
   int? adminEditPriId;
   String adminEditPriCodigo = '';
   String adminEditPriDescricao = '';
@@ -217,6 +219,17 @@ class AppComponent implements OnInit {
       _service.hasRole('admin') ||
       _service.hasRole('operador') ||
       _service.hasRole('gestor');
+  List<Map<String, dynamic>> get adminSecundariosAssociaveis {
+    return adminCatalogSecundarios
+        .where((s) => idAsInt(s['id']) > 0 && !isCatalogReadOnly(s))
+        .toList();
+  }
+
+  List<Map<String, dynamic>> get adminPrincipaisAssociaveis {
+    return adminCatalogPrincipais
+        .where((p) => idAsInt(p['id']) > 0 && !isCatalogReadOnly(p))
+        .toList();
+  }
 
   List<String> get ociCategorias {
     final categories =
@@ -1394,12 +1407,16 @@ class AppComponent implements OnInit {
       secApi,
       secFallback,
       (m) => (m['codigo_sigtap'] ?? '').toString().trim().toLowerCase(),
-    );
+    )
+        .where((m) => (m['tipo'] ?? 'secundario').toString() == 'secundario')
+        .toList();
     adminCatalogPrincipais = _mergeCatalogByKey(
       priApi,
       priFallback,
       (m) => (m['codigo_sigtap'] ?? '').toString().trim().toLowerCase(),
-    );
+    )
+        .where((m) => (m['tipo'] ?? 'principal').toString() == 'principal')
+        .toList();
   }
 
   List<Map<String, dynamic>> _mergeCatalogByKey(
@@ -1539,6 +1556,11 @@ class AppComponent implements OnInit {
       errorMessage = 'Informe o nome do estabelecimento.';
       return;
     }
+    if (adminNovoEstCnes.trim().isNotEmpty &&
+        adminNovoEstCnes.trim().length != 7) {
+      errorMessage = 'CNES deve conter 7 digitos.';
+      return;
+    }
     try {
       await _service.createCatalogEstabelecimento(
         nome: adminNovoEstNome.trim(),
@@ -1572,13 +1594,24 @@ class AppComponent implements OnInit {
       errorMessage = 'Informe codigo e descricao do procedimento secundario.';
       return;
     }
+    if (adminNovoSecCodigo.trim().length != 14) {
+      errorMessage = 'Codigo SIGTAP deve estar no formato 00.00.00.000-0.';
+      return;
+    }
     try {
-      await _service.createCatalogSecundario(
+      final created = await _service.createCatalogSecundario(
         codigoSigtap: adminNovoSecCodigo.trim(),
         descricao: adminNovoSecDescricao.trim(),
       );
+      final secId = idAsInt(created['id']);
+      final principaisIds =
+          adminNovoSecPrincipalIds.where((e) => e > 0).toList();
+      if (secId > 0 && principaisIds.isNotEmpty) {
+        await _service.setCatalogSecundarioPrincipais(secId, principaisIds);
+      }
       adminNovoSecCodigo = '';
       adminNovoSecDescricao = '';
+      adminNovoSecPrincipalIds.clear();
       await _loadAdminCatalog();
       await _loadCatalogData();
       successMessage = 'Procedimento secundario cadastrado.';
@@ -1601,11 +1634,15 @@ class AppComponent implements OnInit {
       errorMessage = 'Informe codigo e descricao do procedimento principal.';
       return;
     }
+    if (adminNovoPriCodigo.trim().length != 14) {
+      errorMessage = 'Codigo SIGTAP deve estar no formato 00.00.00.000-0.';
+      return;
+    }
     try {
       await _service.createCatalogPrincipal(
         codigoSigtap: adminNovoPriCodigo.trim(),
         descricao: adminNovoPriDescricao.trim(),
-        secundariosIds: adminNovoPriSecIds.toList(),
+        secundariosIds: adminNovoPriSecIds.where((e) => e > 0).toList(),
       );
       adminNovoPriCodigo = '';
       adminNovoPriDescricao = '';
@@ -1649,6 +1686,11 @@ class AppComponent implements OnInit {
       errorMessage = 'Informe o nome do estabelecimento.';
       return;
     }
+    if (adminEditEstCnes.trim().isNotEmpty &&
+        adminEditEstCnes.trim().length != 7) {
+      errorMessage = 'CNES deve conter 7 digitos.';
+      return;
+    }
     try {
       await _service.updateCatalogEstabelecimento(
         adminEditEstId!,
@@ -1682,12 +1724,26 @@ class AppComponent implements OnInit {
     adminEditSecId = idAsInt(sec['id']);
     adminEditSecCodigo = (sec['codigo_sigtap'] ?? '').toString();
     adminEditSecDescricao = (sec['descricao'] ?? '').toString();
+    adminEditSecPrincipalIds.clear();
+    final secId = idAsInt(sec['id']);
+    for (final principal in adminCatalogPrincipais) {
+      final secundarios =
+          (principal['secundarios'] as List?) ?? const <dynamic>[];
+      for (final raw in secundarios) {
+        final secMap = Map<String, dynamic>.from(raw as Map);
+        if (idAsInt(secMap['id']) == secId) {
+          adminEditSecPrincipalIds.add(idAsInt(principal['id']));
+          break;
+        }
+      }
+    }
   }
 
   void cancelEditAdminSecundario() {
     adminEditSecId = null;
     adminEditSecCodigo = '';
     adminEditSecDescricao = '';
+    adminEditSecPrincipalIds.clear();
   }
 
   Future<void> saveEditAdminSecundario() async {
@@ -1697,11 +1753,19 @@ class AppComponent implements OnInit {
       errorMessage = 'Informe codigo e descricao do procedimento secundario.';
       return;
     }
+    if (adminEditSecCodigo.trim().length != 14) {
+      errorMessage = 'Codigo SIGTAP deve estar no formato 00.00.00.000-0.';
+      return;
+    }
     try {
       await _service.updateCatalogProcedimento(
         adminEditSecId!,
         codigoSigtap: adminEditSecCodigo.trim(),
         descricao: adminEditSecDescricao.trim(),
+      );
+      await _service.setCatalogSecundarioPrincipais(
+        adminEditSecId!,
+        adminEditSecPrincipalIds.where((e) => e > 0).toList(),
       );
       await _loadAdminCatalog();
       await _loadCatalogData();
@@ -1752,6 +1816,22 @@ class AppComponent implements OnInit {
     }
   }
 
+  void toggleAdminNovoSecPrincipal(int id, bool checked) {
+    if (checked) {
+      adminNovoSecPrincipalIds.add(id);
+    } else {
+      adminNovoSecPrincipalIds.remove(id);
+    }
+  }
+
+  void toggleAdminEditSecPrincipal(int id, bool checked) {
+    if (checked) {
+      adminEditSecPrincipalIds.add(id);
+    } else {
+      adminEditSecPrincipalIds.remove(id);
+    }
+  }
+
   Future<void> saveEditAdminPrincipal() async {
     if (adminEditPriId == null) return;
     if (adminEditPriCodigo.trim().isEmpty ||
@@ -1759,12 +1839,16 @@ class AppComponent implements OnInit {
       errorMessage = 'Informe codigo e descricao do procedimento principal.';
       return;
     }
+    if (adminEditPriCodigo.trim().length != 14) {
+      errorMessage = 'Codigo SIGTAP deve estar no formato 00.00.00.000-0.';
+      return;
+    }
     try {
       await _service.updateCatalogProcedimento(
         adminEditPriId!,
         codigoSigtap: adminEditPriCodigo.trim(),
         descricao: adminEditPriDescricao.trim(),
-        secundariosIds: adminEditPriSecIds.toList(),
+        secundariosIds: adminEditPriSecIds.where((e) => e > 0).toList(),
       );
       await _loadAdminCatalog();
       await _loadCatalogData();
@@ -1805,6 +1889,32 @@ class AppComponent implements OnInit {
 
   void printLaudo() {
     html.window.print();
+  }
+
+  void onAdminNovoEstCnesChanged(String value) {
+    final digits = _digitsOnly(value);
+    adminNovoEstCnes = digits.length > 7 ? digits.substring(0, 7) : digits;
+  }
+
+  void onAdminEditEstCnesChanged(String value) {
+    final digits = _digitsOnly(value);
+    adminEditEstCnes = digits.length > 7 ? digits.substring(0, 7) : digits;
+  }
+
+  void onAdminNovoSecCodigoChanged(String value) {
+    adminNovoSecCodigo = _formatCodigoSigtap(value);
+  }
+
+  void onAdminNovoPriCodigoChanged(String value) {
+    adminNovoPriCodigo = _formatCodigoSigtap(value);
+  }
+
+  void onAdminEditSecCodigoChanged(String value) {
+    adminEditSecCodigo = _formatCodigoSigtap(value);
+  }
+
+  void onAdminEditPriCodigoChanged(String value) {
+    adminEditPriCodigo = _formatCodigoSigtap(value);
   }
 
   String statusLabel(String value) {

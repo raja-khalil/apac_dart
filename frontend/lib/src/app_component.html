@@ -575,7 +575,7 @@
         </div>
         <div class="admin-form-grid">
           <label>Nome <input type="text" [(ngModel)]="adminNovoEstNome" /></label>
-          <label>CNES <input type="text" [(ngModel)]="adminNovoEstCnes" /></label>
+          <label>CNES <input type="text" [ngModel]="adminNovoEstCnes" (ngModelChange)="onAdminNovoEstCnesChanged($event)" [maxlength]="7" placeholder="0000000" /></label>
           <label>
             Tipo
             <select [(ngModel)]="adminNovoEstTipo">
@@ -590,7 +590,7 @@
         </div>
         <div class="admin-form-grid" *ngIf="adminEditEstId != null">
           <label>Editar nome <input type="text" [(ngModel)]="adminEditEstNome" /></label>
-          <label>Editar CNES <input type="text" [(ngModel)]="adminEditEstCnes" /></label>
+          <label>Editar CNES <input type="text" [ngModel]="adminEditEstCnes" (ngModelChange)="onAdminEditEstCnesChanged($event)" [maxlength]="7" placeholder="0000000" /></label>
           <label>
             Editar tipo
             <select [(ngModel)]="adminEditEstTipo">
@@ -652,19 +652,39 @@
       <article class="card admin-form-card">
         <h3>Categoria: Procedimentos Secundarios</h3>
         <div class="admin-form-grid">
-          <label>Codigo SIGTAP <input type="text" [(ngModel)]="adminNovoSecCodigo" /></label>
-          <label>Descricao <input type="text" [(ngModel)]="adminNovoSecDescricao" /></label>
+          <label>Codigo SIGTAP <input type="text" [ngModel]="adminNovoSecCodigo" (ngModelChange)="onAdminNovoSecCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
+          <label>Descricao <input type="text" [(ngModel)]="adminNovoSecDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
             <button type="button" (click)="createAdminSecundario()">Adicionar</button>
           </div>
         </div>
+        <div class="admin-roles">
+          <label class="checkbox-line" *ngFor="let p of adminPrincipaisAssociaveis">
+            <input
+              type="checkbox"
+              [checked]="adminNovoSecPrincipalIds.contains(idAsInt(p['id']))"
+              (change)="toggleAdminNovoSecPrincipal(idAsInt(p['id']), $event.target.checked)"
+            />
+            {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
+          </label>
+        </div>
         <div class="admin-form-grid" *ngIf="adminEditSecId != null">
-          <label>Editar codigo <input type="text" [(ngModel)]="adminEditSecCodigo" /></label>
-          <label>Editar descricao <input type="text" [(ngModel)]="adminEditSecDescricao" /></label>
+          <label>Editar codigo <input type="text" [ngModel]="adminEditSecCodigo" (ngModelChange)="onAdminEditSecCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
+          <label>Editar descricao <input type="text" [(ngModel)]="adminEditSecDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
             <button type="button" (click)="saveEditAdminSecundario()">Salvar</button>
             <button type="button" class="secondary" (click)="cancelEditAdminSecundario()">Cancelar</button>
           </div>
+        </div>
+        <div class="admin-roles" *ngIf="adminEditSecId != null">
+          <label class="checkbox-line" *ngFor="let p of adminPrincipaisAssociaveis">
+            <input
+              type="checkbox"
+              [checked]="adminEditSecPrincipalIds.contains(idAsInt(p['id']))"
+              (change)="toggleAdminEditSecPrincipal(idAsInt(p['id']), $event.target.checked)"
+            />
+            {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
+          </label>
         </div>
         <table>
           <thead>
@@ -712,14 +732,14 @@
       <article class="card admin-form-card">
         <h3>Categoria: Procedimentos Principais (OCI)</h3>
         <div class="admin-form-grid">
-          <label>Codigo SIGTAP <input type="text" [(ngModel)]="adminNovoPriCodigo" /></label>
-          <label>Descricao <input type="text" [(ngModel)]="adminNovoPriDescricao" /></label>
+          <label>Codigo SIGTAP <input type="text" [ngModel]="adminNovoPriCodigo" (ngModelChange)="onAdminNovoPriCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
+          <label>Descricao <input type="text" [(ngModel)]="adminNovoPriDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
             <button type="button" (click)="createAdminPrincipal()">Adicionar</button>
           </div>
         </div>
         <div class="admin-roles">
-          <label class="checkbox-line" *ngFor="let sec of adminCatalogSecundarios">
+          <label class="checkbox-line" *ngFor="let sec of adminSecundariosAssociaveis">
             <input
               type="checkbox"
               [checked]="adminNovoPriSecIds.contains(idAsInt(sec['id']))"
@@ -730,15 +750,15 @@
         </div>
 
         <div class="admin-form-grid" *ngIf="adminEditPriId != null">
-          <label>Editar codigo <input type="text" [(ngModel)]="adminEditPriCodigo" /></label>
-          <label>Editar descricao <input type="text" [(ngModel)]="adminEditPriDescricao" /></label>
+          <label>Editar codigo <input type="text" [ngModel]="adminEditPriCodigo" (ngModelChange)="onAdminEditPriCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
+          <label>Editar descricao <input type="text" [(ngModel)]="adminEditPriDescricao" [maxlength]="255" /></label>
           <div class="list-actions">
             <button type="button" (click)="saveEditAdminPrincipal()">Salvar</button>
             <button type="button" class="secondary" (click)="cancelEditAdminPrincipal()">Cancelar</button>
           </div>
         </div>
         <div class="admin-roles" *ngIf="adminEditPriId != null">
-          <label class="checkbox-line" *ngFor="let sec of adminCatalogSecundarios">
+          <label class="checkbox-line" *ngFor="let sec of adminSecundariosAssociaveis">
             <input
               type="checkbox"
               [checked]="adminEditPriSecIds.contains(idAsInt(sec['id']))"

@@ -20,7 +20,8 @@ class CatalogService {
     required String cnes,
     required String tipo,
   }) {
-    return _repository.createEstabelecimento(nome: nome, cnes: cnes, tipo: tipo);
+    return _repository.createEstabelecimento(
+        nome: nome, cnes: cnes, tipo: tipo);
   }
 
   Future<Map<String, dynamic>?> updateEstabelecimento({
@@ -41,11 +42,14 @@ class CatalogService {
     return _repository.setEstabelecimentoAtivo(id, ativo);
   }
 
-  Future<bool> deleteEstabelecimento(int id) => _repository.deleteEstabelecimento(id);
+  Future<bool> deleteEstabelecimento(int id) =>
+      _repository.deleteEstabelecimento(id);
 
-  Future<List<Map<String, dynamic>>> listPrincipais({bool includeInativos = false}) =>
+  Future<List<Map<String, dynamic>>> listPrincipais(
+          {bool includeInativos = false}) =>
       _repository.listPrincipais(includeInativos: includeInativos);
-  Future<List<Map<String, dynamic>>> listSecundarios({bool includeInativos = false}) =>
+  Future<List<Map<String, dynamic>>> listSecundarios(
+          {bool includeInativos = false}) =>
       _repository.listSecundarios(includeInativos: includeInativos);
 
   Future<Map<String, dynamic>> createProcedimentoSecundario({
@@ -82,6 +86,11 @@ class CatalogService {
       descricao: descricao,
       secundariosIds: secundariosIds,
     );
+  }
+
+  Future<bool> setSecundarioPrincipais(
+      int secundarioId, List<int> principaisIds) {
+    return _repository.setSecundarioPrincipais(secundarioId, principaisIds);
   }
 
   Future<bool> setProcedimentoAtivo(int id, bool ativo) {
