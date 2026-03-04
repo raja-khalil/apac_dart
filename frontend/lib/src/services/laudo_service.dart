@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:html' as html;
 
@@ -6,12 +6,160 @@ import 'package:apac_frontend/src/models/laudo.dart';
 import 'package:http/browser_client.dart';
 import 'package:http/http.dart' as http;
 
+class UnauthorizedException implements Exception {
+  UnauthorizedException([this.message = 'Nao autenticado.']);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class LaudoService {
-  LaudoService({http.Client? client}) : _client = client ?? BrowserClient();
+  LaudoService({http.Client? client}) : _client = client ?? BrowserClient() {
+    _accessToken = html.window.localStorage[_tokenStorageKey];
+    _tokenExpiresAt = html.window.localStorage[_tokenExpiresStorageKey];
+    final rawUser = html.window.localStorage[_userStorageKey];
+    if (rawUser != null && rawUser.trim().isNotEmpty) {
+      try {
+        _currentUser = Map<String, dynamic>.from(jsonDecode(rawUser) as Map);
+      } catch (_) {
+        _currentUser = null;
+      }
+    }
+  }
 
   final http.Client _client;
+  static const String _tokenStorageKey = 'apac_auth_token';
+  static const String _tokenExpiresStorageKey = 'apac_auth_expires_at';
+  static const String _userStorageKey = 'apac_auth_user';
+
   String? _resolvedBaseUrl;
+  String? _accessToken;
+  String? _tokenExpiresAt;
+  Map<String, dynamic>? _currentUser;
+  void Function()? _onUnauthorized;
+
   String? get activeBaseUrl => _resolvedBaseUrl;
+  bool get isAuthenticated => _accessToken != null && _accessToken!.isNotEmpty;
+  Map<String, dynamic>? get currentUser => _currentUser;
+
+  void setUnauthorizedHandler(void Function()? handler) {
+    _onUnauthorized = handler;
+  }
+
+  Future<bool> restoreSession() async {
+    if (!isAuthenticated) return false;
+    final me = await fetchMe();
+    return me != null;
+  }
+
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String senha,
+  }) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/login'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'email': email, 'senha': senha}),
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = Map<String, dynamic>.from(
+        (payload['data'] as Map?) ?? <String, dynamic>{},
+      );
+      _saveSession(data);
+      return data;
+    });
+  }
+
+  Future<Map<String, dynamic>> register({
+    required String nome,
+    required String email,
+    required String senha,
+  }) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/register'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'nome': nome, 'email': email, 'senha': senha}),
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode != 201) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from(
+        (payload['data'] as Map?) ?? <String, dynamic>{},
+      );
+    });
+  }
+
+  Future<Map<String, dynamic>?> fetchMe() async {
+    if (!isAuthenticated) return null;
+
+    try {
+      return await _executeWithRecovery((baseUrl) async {
+        final response = await _client
+            .get(Uri.parse('$baseUrl/auth/me'), headers: _headers())
+            .timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 401) {
+          _handleUnauthorized();
+          return null;
+        }
+
+        if (response.statusCode != 200) {
+          throw Exception(_extractError(response.body, response.statusCode));
+        }
+
+        final payload = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = Map<String, dynamic>.from(
+          (payload['data'] as Map?) ?? <String, dynamic>{},
+        );
+        _currentUser = data;
+        html.window.localStorage[_userStorageKey] = jsonEncode(data);
+        return data;
+      });
+    } on UnauthorizedException {
+      return null;
+    }
+  }
+
+  Future<void> logout() async {
+    if (isAuthenticated) {
+      try {
+        await _executeWithRecovery((baseUrl) async {
+          await _client
+              .post(Uri.parse('$baseUrl/auth/logout'), headers: _headers())
+              .timeout(const Duration(seconds: 4));
+          return true;
+        });
+      } catch (_) {
+        // Clear local session even if backend logout fails.
+      }
+    }
+    clearSession();
+  }
+
+  void clearSession() {
+    _accessToken = null;
+    _tokenExpiresAt = null;
+    _currentUser = null;
+    html.window.localStorage.remove(_tokenStorageKey);
+    html.window.localStorage.remove(_tokenExpiresStorageKey);
+    html.window.localStorage.remove(_userStorageKey);
+  }
 
   Future<bool> checkHealth() async {
     final baseUrl = await _resolveBaseUrl();
@@ -39,7 +187,14 @@ class LaudoService {
       return await _executeWithRecovery((baseUrl) async {
         final uri = Uri.parse('$baseUrl/laudos')
             .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
-        final response = await _client.get(uri).timeout(const Duration(seconds: 5));
+        final response =
+            await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 401) {
+          _handleUnauthorized();
+          throw UnauthorizedException();
+        }
+
         if (response.statusCode != 200) {
           throw Exception('Falha ao carregar laudos (${response.statusCode}).');
         }
@@ -64,10 +219,15 @@ class LaudoService {
         final response = await _client
             .post(
               Uri.parse('$baseUrl/laudos'),
-              headers: const {'content-type': 'application/json'},
+              headers: _headers(includeJson: true),
               body: jsonEncode(body),
             )
             .timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 401) {
+          _handleUnauthorized();
+          throw UnauthorizedException();
+        }
 
         if (response.statusCode != 201) {
           throw Exception(_extractError(response.body, response.statusCode));
@@ -89,10 +249,15 @@ class LaudoService {
         final response = await _client
             .put(
               Uri.parse('$baseUrl/laudos/$id'),
-              headers: const {'content-type': 'application/json'},
+              headers: _headers(includeJson: true),
               body: jsonEncode(body),
             )
             .timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 401) {
+          _handleUnauthorized();
+          throw UnauthorizedException();
+        }
 
         if (response.statusCode != 200) {
           throw Exception(_extractError(response.body, response.statusCode));
@@ -112,8 +277,12 @@ class LaudoService {
     try {
       await _executeWithRecovery((baseUrl) async {
         final response = await _client
-            .delete(Uri.parse('$baseUrl/laudos/$id'))
+            .delete(Uri.parse('$baseUrl/laudos/$id'), headers: _headers())
             .timeout(const Duration(seconds: 5));
+        if (response.statusCode == 401) {
+          _handleUnauthorized();
+          throw UnauthorizedException();
+        }
         if (response.statusCode != 200) {
           throw Exception(_extractError(response.body, response.statusCode));
         }
@@ -191,12 +360,43 @@ class LaudoService {
     final first = await _ensureBaseUrl();
     try {
       return await action(first);
+    } on UnauthorizedException {
+      rethrow;
     } catch (_) {
       _resolvedBaseUrl = null;
       final second = await _resolveBaseUrl();
       if (second == null || second == first) rethrow;
       return action(second);
     }
+  }
+
+  Map<String, String> _headers({bool includeJson = false}) {
+    final headers = <String, String>{};
+    if (includeJson) {
+      headers['content-type'] = 'application/json';
+    }
+    if (_accessToken != null && _accessToken!.isNotEmpty) {
+      headers['authorization'] = 'Bearer $_accessToken';
+    }
+    return headers;
+  }
+
+  void _saveSession(Map<String, dynamic> sessionData) {
+    _accessToken = (sessionData['access_token'] ?? '').toString();
+    _tokenExpiresAt = (sessionData['expires_at'] ?? '').toString();
+    _currentUser = Map<String, dynamic>.from(
+      (sessionData['user'] as Map?) ?? <String, dynamic>{},
+    );
+
+    html.window.localStorage[_tokenStorageKey] = _accessToken ?? '';
+    html.window.localStorage[_tokenExpiresStorageKey] = _tokenExpiresAt ?? '';
+    html.window.localStorage[_userStorageKey] = jsonEncode(_currentUser);
+  }
+
+  void _handleUnauthorized() {
+    clearSession();
+    final callback = _onUnauthorized;
+    if (callback != null) callback();
   }
 
   String _extractError(String rawBody, int fallbackCode) {

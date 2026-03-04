@@ -48,7 +48,16 @@ class AppComponent implements OnInit {
   final DateFormat _dateFormatter = DateFormat('dd/MM/yyyy');
   final DateFormat _monthFormatter = DateFormat('MMM');
 
-  String currentPage = 'dashboard';
+  String currentPage = 'login';
+  bool isAuthenticated = false;
+  bool loggingIn = false;
+  bool registering = false;
+  bool registerMode = false;
+  String loginNome = '';
+  String loginEmail = '';
+  String loginSenha = '';
+  String? authMessage;
+  Map<String, dynamic>? authUser;
   bool loading = false;
   bool saving = false;
   bool online = false;
@@ -418,7 +427,21 @@ class AppComponent implements OnInit {
 
   @override
   Future<void> ngOnInit() async {
-    await refreshAll();
+    _service.setUnauthorizedHandler(_handleUnauthorizedFromService);
+    await _service.resolveBaseUrl();
+    apiEndpoint = _service.activeBaseUrl ?? 'API nao detectada';
+    online = await _service.checkHealth();
+    apiEndpoint = _service.activeBaseUrl ?? apiEndpoint;
+
+    isAuthenticated = await _service.restoreSession();
+    authUser = _service.currentUser;
+
+    if (isAuthenticated) {
+      currentPage = 'dashboard';
+      await refreshAll();
+    } else {
+      currentPage = 'login';
+    }
   }
 
   Future<void> refreshAll() async {
@@ -429,6 +452,11 @@ class AppComponent implements OnInit {
     apiEndpoint = _service.activeBaseUrl ?? 'API nao detectada';
     online = await _service.checkHealth();
     apiEndpoint = _service.activeBaseUrl ?? apiEndpoint;
+
+    if (!isAuthenticated) {
+      loading = false;
+      return;
+    }
 
     try {
       laudos = await _service.fetchLaudos();
@@ -441,12 +469,91 @@ class AppComponent implements OnInit {
   }
 
   void switchPage(String page) {
+    if (!isAuthenticated) {
+      currentPage = 'login';
+      return;
+    }
     currentPage = page;
     errorMessage = null;
     if (page == 'novo' && editingId == null) {
       viewOnly = false;
       _clearForm();
     }
+  }
+
+  Future<void> login() async {
+    authMessage = null;
+    final nome = loginNome.trim();
+    final email = loginEmail.trim();
+    final senha = loginSenha.trim();
+
+    if (email.isEmpty || senha.isEmpty) {
+      authMessage = 'Informe email e senha.';
+      return;
+    }
+
+    if (registerMode) {
+      if (nome.isEmpty) {
+        authMessage = 'Informe o nome para cadastro.';
+        return;
+      }
+      if (senha.length < 6) {
+        authMessage = 'Senha deve ter no minimo 6 caracteres.';
+        return;
+      }
+    }
+
+    try {
+      if (registerMode) {
+        registering = true;
+        await _service.register(nome: nome, email: email, senha: senha);
+      }
+
+      loggingIn = true;
+      await _service.login(email: email, senha: senha);
+      authUser = _service.currentUser;
+      isAuthenticated = true;
+      registerMode = false;
+      loginNome = '';
+      loginSenha = '';
+      currentPage = 'dashboard';
+      await refreshAll();
+    } catch (error) {
+      authMessage = _errorText(error);
+    } finally {
+      loggingIn = false;
+      registering = false;
+    }
+  }
+
+  Future<void> logout() async {
+    await _service.logout();
+    _logoutLocal('Sessao encerrada.');
+  }
+
+  void toggleRegisterMode() {
+    registerMode = !registerMode;
+    authMessage = null;
+  }
+
+  void _handleUnauthorizedFromService() {
+    _logoutLocal('Sessao expirada. Faca login novamente.');
+  }
+
+  void _logoutLocal(String message) {
+    isAuthenticated = false;
+    authUser = null;
+    authMessage = message;
+    errorMessage = null;
+    laudos = <Laudo>[];
+    currentPage = 'login';
+    _clearForm();
+  }
+
+  String _errorText(Object error) {
+    var text = error.toString();
+    text = text.replaceFirst('Exception: ', '').replaceFirst('Bad state: ', '');
+    return text;
   }
 
   void onDashboardUnidadeFilterChanged(dynamic value) {

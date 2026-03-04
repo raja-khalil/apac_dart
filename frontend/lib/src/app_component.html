@@ -8,10 +8,11 @@
       </div>
     </div>
 
-    <nav class="nav">
+    <nav class="nav" *ngIf="isAuthenticated">
       <button type="button" [class.active]="currentPage == 'dashboard'" (click)="switchPage('dashboard')">Dashboard</button>
       <button type="button" [class.active]="currentPage == 'novo'" (click)="switchPage('novo')">Novo Laudo</button>
       <button type="button" [class.active]="currentPage == 'laudos'" (click)="switchPage('laudos')">Laudos</button>
+      <button type="button" class="secondary" (click)="logout()">Sair</button>
     </nav>
   </header>
 
@@ -25,7 +26,29 @@
     </div>
     <div class="error-banner" *ngIf="errorMessage != null">{{ errorMessage }}</div>
 
-    <section *ngIf="currentPage == 'dashboard'">
+    <section *ngIf="!isAuthenticated" class="auth-page">
+      <article class="card auth-card">
+        <h1>{{ registerMode ? 'Criar Conta' : 'Acesso ao Sistema' }}</h1>
+        <p>{{ registerMode ? 'Cadastre um usuario para acessar o sistema.' : 'Entre com email e senha para continuar.' }}</p>
+
+        <div class="error-banner" *ngIf="authMessage != null">{{ authMessage }}</div>
+
+        <label *ngIf="registerMode">Nome <input type="text" [(ngModel)]="loginNome" placeholder="Nome completo" /></label>
+        <label>Email <input type="email" [(ngModel)]="loginEmail" placeholder="usuario@dominio.com" /></label>
+        <label>Senha <input type="password" [(ngModel)]="loginSenha" placeholder="Senha" /></label>
+
+        <div class="auth-actions">
+          <button type="button" (click)="login()" [disabled]="loggingIn || registering">
+            {{ registerMode ? (registering ? 'Cadastrando...' : 'Cadastrar e Entrar') : (loggingIn ? 'Entrando...' : 'Entrar') }}
+          </button>
+          <button type="button" class="secondary" (click)="toggleRegisterMode()">
+            {{ registerMode ? 'Voltar para Login' : 'Criar Conta' }}
+          </button>
+        </div>
+      </article>
+    </section>
+
+    <section *ngIf="isAuthenticated && currentPage == 'dashboard'">
       <div class="page-head">
         <div>
           <h1>Dashboard <span class="online-pill">{{ online ? 'Online' : 'Offline' }}</span></h1>
@@ -119,7 +142,7 @@
       </article>
     </section>
 
-    <section *ngIf="currentPage == 'novo'" class="novo-page">
+    <section *ngIf="isAuthenticated && currentPage == 'novo'" class="novo-page">
       <div class="page-head form-head">
         <h1>{{ novoTitulo }}</h1>
       </div>
@@ -301,7 +324,7 @@
       </div>
     </section>
 
-    <section *ngIf="currentPage == 'laudos'">
+    <section *ngIf="isAuthenticated && currentPage == 'laudos'">
       <div class="page-head">
         <div>
           <h1>Laudos Emitidos <span class="online-pill">{{ online ? 'Online' : 'Offline' }}</span></h1>
