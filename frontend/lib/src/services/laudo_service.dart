@@ -90,6 +90,46 @@ class LaudoService {
     });
   }
 
+  Future<Map<String, dynamic>> forgotPassword({
+    required String email,
+  }) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/forgot-password'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'email': email}),
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+    });
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String senha,
+  }) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/reset-password'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'token': token, 'senha': senha}),
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
   Future<Map<String, dynamic>> register({
     required String nome,
     required String email,

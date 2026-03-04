@@ -196,6 +196,17 @@ class Database {
     ''');
 
     await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.password_reset_tokens_v2 (
+        id BIGSERIAL PRIMARY KEY,
+        usuario_id BIGINT NOT NULL REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+        token TEXT NOT NULL,
+        expires_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+        used_at TIMESTAMP WITHOUT TIME ZONE NULL,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
+    await _connection.execute('''
       CREATE TABLE IF NOT EXISTS public.audit_logs_v2 (
         id BIGSERIAL PRIMARY KEY,
         usuario_id BIGINT REFERENCES public.usuarios_v2(id),
@@ -255,6 +266,15 @@ class Database {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_sessoes_v2_token_uq ON public.sessoes_v2(token)',
     );
     await _connection.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_password_reset_tokens_v2_token_uq ON public.password_reset_tokens_v2(token)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_v2_usuario_id ON public.password_reset_tokens_v2(usuario_id)',
+    );
+    await _connection.execute(
+      'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_v2_expires_at ON public.password_reset_tokens_v2(expires_at)',
+    );
+    await _connection.execute(
       'CREATE INDEX IF NOT EXISTS idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)',
     );
     await _connection.execute(
@@ -293,47 +313,6 @@ class Database {
       ''');
     }
 
-    final adminEmail = 'admin@apac.local';
-    final adminRows = await _connection
-        .table('usuarios_v2')
-        .select(['id'])
-        .where('email', '=', adminEmail)
-        .limit(1)
-        .get();
-
-    int adminId;
-    if ((adminRows as List).isEmpty) {
-      final inserted = await _connection.table('usuarios_v2').insertGetId({
-        'nome': 'Administrador',
-        'email': adminEmail,
-        'ativo': true,
-        'created_at': now,
-        'updated_at': now,
-      }, 'id');
-      adminId = (inserted as num).toInt();
-    } else {
-      adminId = ((adminRows.first as Map)['id'] as num).toInt();
-    }
-
-    const adminSalt = 'apac_admin_seed_salt';
-    final adminHash = sha256.convert(utf8.encode('$adminSalt:ostras123')).toString();
-    final credRows = await _connection
-        .table('usuario_credenciais_v2')
-        .select(['usuario_id'])
-        .where('usuario_id', '=', adminId)
-        .limit(1)
-        .get();
-
-    if ((credRows as List).isEmpty) {
-      await _connection.table('usuario_credenciais_v2').insert({
-        'usuario_id': adminId,
-        'senha_hash': adminHash,
-        'senha_salt': adminSalt,
-        'created_at': now,
-        'updated_at': now,
-      });
-    }
-
     final perfilRows = await _connection
         .table('perfis_v2')
         .select(['id'])
@@ -342,17 +321,85 @@ class Database {
         .get();
     if ((perfilRows as List).isEmpty) return;
     final adminProfileId = ((perfilRows.first as Map)['id'] as num).toInt();
+    await _ensureAdminUser(
+      nome: 'Administrador',
+      email: 'admin@apac.local',
+      senha: 'ostras123',
+      salt: 'apac_admin_seed_salt',
+      adminProfileId: adminProfileId,
+      now: now,
+    );
+    await _ensureAdminUser(
+      nome: 'Raja Khalil',
+      email: 'raja.pmro@gmail.com',
+      senha: 'ostras123',
+      salt: 'apac_raja_seed_salt',
+      adminProfileId: adminProfileId,
+      now: now,
+    );
+  }
+
+  static Future<void> _ensureAdminUser({
+    required String nome,
+    required String email,
+    required String senha,
+    required String salt,
+    required int adminProfileId,
+    required String now,
+  }) async {
+    final rows = await _connection
+        .table('usuarios_v2')
+        .select(['id'])
+        .where('email', '=', email.toLowerCase().trim())
+        .limit(1)
+        .get();
+
+    int userId;
+    if ((rows as List).isEmpty) {
+      final inserted = await _connection.table('usuarios_v2').insertGetId({
+        'nome': nome,
+        'email': email.toLowerCase().trim(),
+        'ativo': true,
+        'created_at': now,
+        'updated_at': now,
+      }, 'id');
+      userId = (inserted as num).toInt();
+    } else {
+      userId = ((rows.first as Map)['id'] as num).toInt();
+      await _connection.table('usuarios_v2').where('id', '=', userId).update({
+        'nome': nome,
+        'ativo': true,
+        'updated_at': now,
+      });
+    }
+
+    final hash = sha256.convert(utf8.encode('$salt:$senha')).toString();
+    final credRows = await _connection
+        .table('usuario_credenciais_v2')
+        .select(['usuario_id'])
+        .where('usuario_id', '=', userId)
+        .limit(1)
+        .get();
+    if ((credRows as List).isEmpty) {
+      await _connection.table('usuario_credenciais_v2').insert({
+        'usuario_id': userId,
+        'senha_hash': hash,
+        'senha_salt': salt,
+        'created_at': now,
+        'updated_at': now,
+      });
+    }
 
     final linkRows = await _connection
         .table('usuario_perfis_v2')
         .select(['usuario_id'])
-        .where('usuario_id', '=', adminId)
+        .where('usuario_id', '=', userId)
         .where('perfil_id', '=', adminProfileId)
         .limit(1)
         .get();
     if ((linkRows as List).isEmpty) {
       await _connection.table('usuario_perfis_v2').insert({
-        'usuario_id': adminId,
+        'usuario_id': userId,
         'perfil_id': adminProfileId,
         'created_at': now,
       });

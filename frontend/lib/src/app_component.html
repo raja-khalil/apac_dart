@@ -33,12 +33,32 @@
         <p>Entre com email e senha para continuar.</p>
 
         <div class="error-banner" *ngIf="authMessage != null">{{ authMessage }}</div>
+        <div class="connection-banner" *ngIf="resetInfoMessage != null">{{ resetInfoMessage }}</div>
 
         <label>Email <input type="email" [(ngModel)]="loginEmail" placeholder="usuario@dominio.com" /></label>
-        <label>Senha <input type="password" [(ngModel)]="loginSenha" placeholder="Senha" /></label>
+        <label>
+          Senha
+          <div class="password-field">
+            <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="loginSenha" placeholder="Senha" />
+            <button type="button" class="secondary small" (click)="toggleShowPassword()">{{ showPassword ? 'Ocultar' : 'Mostrar' }}</button>
+          </div>
+        </label>
 
         <div class="auth-actions">
           <button type="button" (click)="login()" [disabled]="loggingIn">{{ loggingIn ? 'Entrando...' : 'Entrar' }}</button>
+          <button type="button" class="secondary" (click)="toggleForgotMode()">{{ forgotMode ? 'Fechar' : 'Esqueci senha' }}</button>
+        </div>
+
+        <div class="forgot-panel" *ngIf="forgotMode">
+          <label>Email para recuperacao <input type="email" [(ngModel)]="forgotEmail" placeholder="usuario@dominio.com" /></label>
+          <button type="button" class="secondary" (click)="requestPasswordReset()" [disabled]="requestingReset">
+            {{ requestingReset ? 'Solicitando...' : 'Solicitar nova senha' }}
+          </button>
+          <label>Codigo de redefinicao <input type="text" [(ngModel)]="forgotToken" placeholder="Cole o codigo recebido" /></label>
+          <label>Nova senha <input type="password" [(ngModel)]="forgotNewPassword" placeholder="Minimo 6 caracteres" /></label>
+          <button type="button" (click)="resetPassword()" [disabled]="resettingPassword">
+            {{ resettingPassword ? 'Redefinindo...' : 'Confirmar nova senha' }}
+          </button>
         </div>
       </article>
     </section>

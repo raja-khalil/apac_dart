@@ -163,6 +163,15 @@ class EloquentAuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<void> revokeSessionsByUserId(int userId) async {
+    await _db
+        .table('sessoes_v2')
+        .where('usuario_id', '=', userId)
+        .whereNull('revoked_at')
+        .update({'revoked_at': DateTime.now().toUtc().toIso8601String()});
+  }
+
+  @override
   Future<List<String>> getUserRoles(int userId) async {
     final rows = await _db.table('usuario_perfis_v2 as up').select([
       'p.codigo as codigo',
@@ -175,6 +184,80 @@ class EloquentAuthRepository implements IAuthRepository {
         .map((e) => ((e as Map)['codigo'] ?? '').toString())
         .where((e) => e.isNotEmpty)
         .toList();
+  }
+
+  @override
+  Future<void> createPasswordResetToken({
+    required int userId,
+    required String token,
+    required DateTime expiresAt,
+  }) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    await _db.table('password_reset_tokens_v2').insert({
+      'usuario_id': userId,
+      'token': token,
+      'expires_at': expiresAt.toUtc().toIso8601String(),
+      'used_at': null,
+      'created_at': now,
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getPasswordResetByToken(String token) async {
+    final query = _db.table('password_reset_tokens_v2 as pr').select([
+      'pr.id as id',
+      'pr.usuario_id as usuario_id',
+      'pr.token as token',
+      'pr.expires_at as expires_at',
+      'pr.used_at as used_at',
+      'u.ativo as ativo',
+    ])
+      ..join('usuarios_v2 as u', 'u.id', '=', 'pr.usuario_id')
+      ..where('pr.token', '=', token)
+      ..limit(1);
+
+    final result = await query.get();
+    if ((result as List).isEmpty) return null;
+    return Map<String, dynamic>.from(result.first as Map);
+  }
+
+  @override
+  Future<void> markPasswordResetUsed(int id) async {
+    await _db.table('password_reset_tokens_v2').where('id', '=', id).update({
+      'used_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  @override
+  Future<void> updateUserPassword({
+    required int userId,
+    required String senhaHash,
+    required String senhaSalt,
+  }) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    final rows = await _db
+        .table('usuario_credenciais_v2')
+        .select(['usuario_id'])
+        .where('usuario_id', '=', userId)
+        .limit(1)
+        .get();
+
+    if ((rows as List).isEmpty) {
+      await _db.table('usuario_credenciais_v2').insert({
+        'usuario_id': userId,
+        'senha_hash': senhaHash,
+        'senha_salt': senhaSalt,
+        'created_at': now,
+        'updated_at': now,
+      });
+      return;
+    }
+
+    await _db.table('usuario_credenciais_v2').where('usuario_id', '=', userId).update({
+      'senha_hash': senhaHash,
+      'senha_salt': senhaSalt,
+      'updated_at': now,
+    });
   }
 
   Future<void> _syncRoles(int userId, List<String> roles, String now) async {

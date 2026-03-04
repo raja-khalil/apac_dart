@@ -68,6 +68,35 @@ class AuthController {
     return _json({'data': user});
   }
 
+  Future<Response> forgotPassword(Request request) async {
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final email = (payload['email'] ?? '').toString().trim();
+    if (email.isEmpty) {
+      return _json({'error': 'Informe o email.'}, status: 422);
+    }
+
+    final result = await _service.requestPasswordReset(email: email);
+    return _json({'data': result});
+  }
+
+  Future<Response> resetPassword(Request request) async {
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final token = (payload['token'] ?? '').toString();
+    final senha = (payload['senha'] ?? '').toString();
+
+    try {
+      await _service.resetPassword(token: token, senha: senha);
+      return _json({'message': 'Senha redefinida com sucesso.'});
+    } catch (error) {
+      return _json(
+        {'error': error.toString().replaceFirst('Bad state: ', '')},
+        status: 422,
+      );
+    }
+  }
+
   Future<Response> logout(Request request) async {
     final auth = request.headers['authorization'] ?? '';
     final token = auth.toLowerCase().startsWith('bearer ')

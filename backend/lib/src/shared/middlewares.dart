@@ -45,6 +45,8 @@ Middleware authMiddleware(AuthService authService) {
   const publicPaths = <String>{
     '/api/health',
     '/api/auth/login',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
   };
 
   return (innerHandler) {

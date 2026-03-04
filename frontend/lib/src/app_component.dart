@@ -51,8 +51,16 @@ class AppComponent implements OnInit {
   String currentPage = 'login';
   bool isAuthenticated = false;
   bool loggingIn = false;
+  bool requestingReset = false;
+  bool resettingPassword = false;
+  bool showPassword = false;
+  bool forgotMode = false;
   String loginEmail = '';
   String loginSenha = '';
+  String forgotEmail = '';
+  String forgotToken = '';
+  String forgotNewPassword = '';
+  String? resetInfoMessage;
   String? authMessage;
   Map<String, dynamic>? authUser;
   bool loading = false;
@@ -539,6 +547,67 @@ class AppComponent implements OnInit {
     _logoutLocal('Sessao encerrada.');
   }
 
+  void toggleShowPassword() {
+    showPassword = !showPassword;
+  }
+
+  void toggleForgotMode() {
+    forgotMode = !forgotMode;
+    resetInfoMessage = null;
+    authMessage = null;
+    if (!forgotMode) {
+      forgotEmail = '';
+      forgotToken = '';
+      forgotNewPassword = '';
+    } else {
+      forgotEmail = loginEmail.trim();
+    }
+  }
+
+  Future<void> requestPasswordReset() async {
+    final email = forgotEmail.trim();
+    if (email.isEmpty) {
+      authMessage = 'Informe o email para solicitar nova senha.';
+      return;
+    }
+    requestingReset = true;
+    authMessage = null;
+    resetInfoMessage = null;
+    try {
+      final data = await _service.forgotPassword(email: email);
+      final token = (data['reset_token'] ?? '').toString();
+      forgotToken = token;
+      resetInfoMessage =
+          token.isEmpty ? 'Solicitacao registrada.' : 'Codigo gerado: $token';
+    } catch (error) {
+      authMessage = _errorText(error);
+    } finally {
+      requestingReset = false;
+    }
+  }
+
+  Future<void> resetPassword() async {
+    final token = forgotToken.trim();
+    final senha = forgotNewPassword.trim();
+    if (token.isEmpty || senha.isEmpty) {
+      authMessage = 'Informe codigo e nova senha.';
+      return;
+    }
+    resettingPassword = true;
+    authMessage = null;
+    try {
+      await _service.resetPassword(token: token, senha: senha);
+      resetInfoMessage = 'Senha redefinida com sucesso. Faça login com a nova senha.';
+      forgotNewPassword = '';
+      forgotToken = '';
+      forgotMode = false;
+    } catch (error) {
+      authMessage = _errorText(error);
+    } finally {
+      resettingPassword = false;
+    }
+  }
+
   void _handleUnauthorizedFromService() {
     _logoutLocal('Sessao expirada. Faca login novamente.');
   }
@@ -547,6 +616,7 @@ class AppComponent implements OnInit {
     isAuthenticated = false;
     authUser = null;
     authMessage = message;
+    resetInfoMessage = null;
     errorMessage = null;
     laudos = <Laudo>[];
     adminUsers = <Map<String, dynamic>>[];
@@ -554,6 +624,11 @@ class AppComponent implements OnInit {
     selectedLaudoIds.clear();
     batchPrintMode = false;
     currentPage = 'login';
+    forgotMode = false;
+    showPassword = false;
+    forgotEmail = '';
+    forgotToken = '';
+    forgotNewPassword = '';
     _clearForm();
   }
 

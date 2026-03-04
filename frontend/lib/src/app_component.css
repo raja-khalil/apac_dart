@@ -154,6 +154,30 @@
   margin-top: var(--s-4);
 }
 
+.password-field {
+  align-items: center;
+  display: flex;
+  gap: var(--s-2);
+}
+
+.password-field input {
+  flex: 1;
+}
+
+.forgot-panel {
+  border-top: 1px solid var(--c-border);
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+}
+
+.forgot-panel label {
+  border: 0;
+  min-height: auto;
+  padding: 0;
+}
+
 h1 {
   align-items: center;
   display: flex;

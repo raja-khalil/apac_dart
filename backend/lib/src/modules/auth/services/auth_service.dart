@@ -107,6 +107,77 @@ class AuthService {
     await _repository.revokeSession(token.trim());
   }
 
+  Future<Map<String, dynamic>> requestPasswordReset({
+    required String email,
+  }) async {
+    final normalizedEmail = email.toLowerCase().trim();
+    final user = await _repository.getUserByEmail(normalizedEmail);
+    if (user == null) {
+      return {
+        'message': 'Se o email existir, um codigo de redefinicao foi gerado.',
+      };
+    }
+
+    final ativo = user['ativo'] == true || user['ativo'] == 1;
+    if (!ativo) {
+      return {
+        'message': 'Se o email existir, um codigo de redefinicao foi gerado.',
+      };
+    }
+
+    final token = _generateToken();
+    final expiresAt = DateTime.now().toUtc().add(const Duration(minutes: 30));
+    await _repository.createPasswordResetToken(
+      userId: (user['id'] as num).toInt(),
+      token: token,
+      expiresAt: expiresAt,
+    );
+
+    return {
+      'message': 'Codigo de redefinicao gerado.',
+      'reset_token': token,
+      'expires_at': expiresAt.toIso8601String(),
+    };
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String senha,
+  }) async {
+    final normalizedToken = token.trim();
+    if (normalizedToken.isEmpty) {
+      throw StateError('Token invalido.');
+    }
+    if (senha.trim().length < 6) {
+      throw StateError('Nova senha deve ter no minimo 6 caracteres.');
+    }
+
+    final reset = await _repository.getPasswordResetByToken(normalizedToken);
+    if (reset == null) {
+      throw StateError('Token invalido ou expirado.');
+    }
+    if (reset['used_at'] != null && reset['used_at'].toString().trim().isNotEmpty) {
+      throw StateError('Token invalido ou expirado.');
+    }
+
+    final expiresAt = DateTime.tryParse((reset['expires_at'] ?? '').toString());
+    if (expiresAt == null || DateTime.now().toUtc().isAfter(expiresAt.toUtc())) {
+      throw StateError('Token invalido ou expirado.');
+    }
+
+    final userId = (reset['usuario_id'] as num).toInt();
+    final salt = _hasher.generateSalt();
+    final hash = _hasher.hashPassword(senha.trim(), salt);
+
+    await _repository.updateUserPassword(
+      userId: userId,
+      senhaHash: hash,
+      senhaSalt: salt,
+    );
+    await _repository.markPasswordResetUsed((reset['id'] as num).toInt());
+    await _repository.revokeSessionsByUserId(userId);
+  }
+
   String _generateToken() {
     final random = Random.secure();
     final bytes = List<int>.generate(48, (_) => random.nextInt(256));

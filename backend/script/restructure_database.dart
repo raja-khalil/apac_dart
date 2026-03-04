@@ -48,6 +48,7 @@ Future<void> _dropTables(Connection db) async {
     DROP TABLE IF EXISTS public.usuario_perfis_v2 CASCADE;
     DROP TABLE IF EXISTS public.perfis_v2 CASCADE;
     DROP TABLE IF EXISTS public.sessoes_v2 CASCADE;
+    DROP TABLE IF EXISTS public.password_reset_tokens_v2 CASCADE;
     DROP TABLE IF EXISTS public.usuario_credenciais_v2 CASCADE;
     DROP TABLE IF EXISTS public.usuarios_v2 CASCADE;
     DROP TABLE IF EXISTS public.laudo_procedimentos_secundarios_v2 CASCADE;
@@ -177,6 +178,15 @@ Future<void> _createTables(Connection db) async {
       revoked_at TIMESTAMP WITHOUT TIME ZONE NULL
     );
 
+    CREATE TABLE public.password_reset_tokens_v2 (
+      id BIGSERIAL PRIMARY KEY,
+      usuario_id BIGINT NOT NULL REFERENCES public.usuarios_v2(id) ON DELETE CASCADE,
+      token TEXT NOT NULL,
+      expires_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+      used_at TIMESTAMP WITHOUT TIME ZONE NULL,
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    );
+
     CREATE TABLE public.audit_logs_v2 (
       id BIGSERIAL PRIMARY KEY,
       usuario_id BIGINT REFERENCES public.usuarios_v2(id),
@@ -208,6 +218,9 @@ Future<void> _createIndexes(Connection db) async {
   await db.execute('CREATE UNIQUE INDEX idx_usuarios_v2_email_uq ON public.usuarios_v2(email)');
   await db.execute('CREATE UNIQUE INDEX idx_perfis_v2_codigo_uq ON public.perfis_v2(codigo)');
   await db.execute('CREATE UNIQUE INDEX idx_sessoes_v2_token_uq ON public.sessoes_v2(token)');
+  await db.execute('CREATE UNIQUE INDEX idx_password_reset_tokens_v2_token_uq ON public.password_reset_tokens_v2(token)');
+  await db.execute('CREATE INDEX idx_password_reset_tokens_v2_usuario_id ON public.password_reset_tokens_v2(usuario_id)');
+  await db.execute('CREATE INDEX idx_password_reset_tokens_v2_expires_at ON public.password_reset_tokens_v2(expires_at)');
   await db.execute('CREATE INDEX idx_sessoes_v2_usuario_id ON public.sessoes_v2(usuario_id)');
   await db.execute('CREATE INDEX idx_sessoes_v2_expires_at ON public.sessoes_v2(expires_at)');
   await db.execute('CREATE INDEX idx_audit_logs_v2_usuario_id ON public.audit_logs_v2(usuario_id)');
@@ -233,36 +246,63 @@ Future<void> _seedProfilesAndAdmin(Connection db) async {
     });
   }
 
-  final adminId = await db.table('usuarios_v2').insertGetId({
-    'nome': 'Administrador',
-    'email': 'admin@apac.local',
-    'ativo': true,
-    'created_at': now,
-    'updated_at': now,
-  }, 'id');
-
-  const salt = 'apac_admin_seed_salt';
-  final hash = sha256.convert(utf8.encode('$salt:ostras123')).toString();
-
-  await db.table('usuario_credenciais_v2').insert({
-    'usuario_id': (adminId as num).toInt(),
-    'senha_hash': hash,
-    'senha_salt': salt,
-    'created_at': now,
-    'updated_at': now,
-  });
-
   final perfilAdmin = await db
       .table('perfis_v2')
       .select(['id'])
       .where('codigo', '=', 'admin')
       .limit(1)
       .get();
-  final adminProfileId = ((perfilAdmin as List).first as Map)['id'];
+  final adminProfileId = (((perfilAdmin as List).first as Map)['id'] as num).toInt();
+
+  await _seedAdminUser(
+    db: db,
+    nome: 'Administrador',
+    email: 'admin@apac.local',
+    senha: 'ostras123',
+    salt: 'apac_admin_seed_salt',
+    adminProfileId: adminProfileId,
+    now: now,
+  );
+  await _seedAdminUser(
+    db: db,
+    nome: 'Raja Khalil',
+    email: 'raja.pmro@gmail.com',
+    senha: 'ostras123',
+    salt: 'apac_raja_seed_salt',
+    adminProfileId: adminProfileId,
+    now: now,
+  );
+}
+
+Future<void> _seedAdminUser({
+  required Connection db,
+  required String nome,
+  required String email,
+  required String senha,
+  required String salt,
+  required int adminProfileId,
+  required String now,
+}) async {
+  final userId = await db.table('usuarios_v2').insertGetId({
+    'nome': nome,
+    'email': email.toLowerCase(),
+    'ativo': true,
+    'created_at': now,
+    'updated_at': now,
+  }, 'id');
+
+  final hash = sha256.convert(utf8.encode('$salt:$senha')).toString();
+  await db.table('usuario_credenciais_v2').insert({
+    'usuario_id': (userId as num).toInt(),
+    'senha_hash': hash,
+    'senha_salt': salt,
+    'created_at': now,
+    'updated_at': now,
+  });
 
   await db.table('usuario_perfis_v2').insert({
-    'usuario_id': adminId,
-    'perfil_id': (adminProfileId as num).toInt(),
+    'usuario_id': userId,
+    'perfil_id': adminProfileId,
     'created_at': now,
   });
 }

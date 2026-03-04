@@ -19,6 +19,20 @@ abstract class IAuthRepository {
 
   Future<Map<String, dynamic>?> getSessionWithUser(String token);
   Future<void> revokeSession(String token);
+  Future<void> revokeSessionsByUserId(int userId);
 
   Future<List<String>> getUserRoles(int userId);
+
+  Future<void> createPasswordResetToken({
+    required int userId,
+    required String token,
+    required DateTime expiresAt,
+  });
+  Future<Map<String, dynamic>?> getPasswordResetByToken(String token);
+  Future<void> markPasswordResetUsed(int id);
+  Future<void> updateUserPassword({
+    required int userId,
+    required String senhaHash,
+    required String senhaSalt,
+  });
 }
