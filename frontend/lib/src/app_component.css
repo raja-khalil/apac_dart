@@ -796,6 +796,16 @@ textarea {
   margin: 4px 0 0;
 }
 
+.batch-print-container {
+  display: none;
+}
+
+.print-sheet {
+  margin: 0 auto 10mm;
+  max-width: 190mm;
+  width: 190mm;
+}
+
 .laudo-main {
   align-items: flex-start;
   display: flex;
@@ -958,7 +968,13 @@ textarea {
   .error-banner,
   .form-head,
   .form-actions-footer,
-  .no-print {
+  .no-print,
+  .page-head,
+  .filters-card,
+  .batch-actions-card,
+  .laudo-list,
+  .admin-form-card,
+  .admin-list-card {
     display: none !important;
   }
 
@@ -1114,5 +1130,20 @@ textarea {
 
   .app-shell.batch-print-mode .oci-group-head {
     padding: 2mm 3mm;
+  }
+
+  .app-shell.batch-print-mode .batch-print-container {
+    display: block !important;
+  }
+
+  .app-shell.batch-print-mode .print-sheet {
+    break-after: page;
+    page-break-after: always;
+    margin: 0 0 4mm;
+  }
+
+  .app-shell.batch-print-mode .print-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 }

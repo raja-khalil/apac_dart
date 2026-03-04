@@ -408,6 +408,71 @@
           Nenhum laudo encontrado para os filtros informados.
         </article>
       </div>
+
+      <section class="batch-print-container" *ngIf="batchPrintMode">
+        <article class="form-sheet print-sheet" *ngFor="let laudo of selectedLaudosInPrintOrder; let i = index">
+          <div class="sheet-header">LAUDO MEDICO PARA PROCEDIMENTOS DE ALTA COMPLEXIDADE - APAC</div>
+          <div class="section-title">FICHA {{ i + 1 }} - IDENTIFICACAO DO PACIENTE</div>
+
+          <div class="grid two">
+            <label>Nome do Paciente <input type="text" [value]="laudo.nomePaciente" readonly /></label>
+            <label>Nome Social <input type="text" [value]="payloadPacienteText(laudo, 'nome_social')" readonly /></label>
+          </div>
+          <div class="grid four docs-grid">
+            <label>CPF <input type="text" [value]="laudo.cpf" readonly /></label>
+            <label>Cartao SUS <input type="text" [value]="payloadPacienteText(laudo, 'cartao_sus')" readonly /></label>
+            <label>Data Nascimento <input type="text" [value]="formatDate(laudo.dataNascimento)" readonly /></label>
+            <label>Sexo <input type="text" [value]="payloadPacienteText(laudo, 'sexo')" readonly /></label>
+          </div>
+          <div class="grid two">
+            <label>Nome da Mae <input type="text" [value]="payloadPacienteText(laudo, 'nome_mae')" readonly /></label>
+            <label>Telefone <input type="text" [value]="payloadPacienteText(laudo, 'telefone')" readonly /></label>
+          </div>
+          <div class="grid one">
+            <label>Endereco <input type="text" [value]="laudoEnderecoLinha(laudo)" readonly /></label>
+          </div>
+          <div class="grid four city-grid">
+            <label>Municipio <input type="text" [value]="payloadPacienteText(laudo, 'municipio')" readonly /></label>
+            <label>IBGE <input type="text" [value]="payloadPacienteText(laudo, 'ibge')" readonly /></label>
+            <label>UF <input type="text" [value]="payloadPacienteText(laudo, 'uf')" readonly /></label>
+            <label>CEP <input type="text" [value]="payloadPacienteText(laudo, 'cep')" readonly /></label>
+          </div>
+
+          <div class="section-title">PROCEDIMENTOS E JUSTIFICATIVA</div>
+          <div class="grid three">
+            <label>OCI Codigo <input type="text" [value]="laudo.ociCodigo" readonly /></label>
+            <label>OCI Descricao <input type="text" [value]="laudo.ociDescricao" readonly /></label>
+            <label>Status <input type="text" [value]="statusLabel(laudo.status)" readonly /></label>
+          </div>
+          <div class="grid one">
+            <label>Diagnostico <textarea [value]="payloadText(laudo, 'descricao_diagnostico')" readonly></textarea></label>
+          </div>
+          <div class="grid three">
+            <label>CID-10 Principal <input type="text" [value]="payloadText(laudo, 'cid10_principal')" readonly /></label>
+            <label>CID-10 Secundario <input type="text" [value]="payloadText(laudo, 'cid10_secundario')" readonly /></label>
+            <label>CID-10 Causas Assoc. <input type="text" [value]="payloadText(laudo, 'cid10_causas_associadas')" readonly /></label>
+          </div>
+          <div class="grid one">
+            <label>Procedimentos Secundarios
+              <textarea [value]="laudoSecundariosTexto(laudo)" readonly></textarea>
+            </label>
+          </div>
+
+          <div class="section-title">ESTABELECIMENTOS E SOLICITACAO</div>
+          <div class="grid two">
+            <label>Unidade Solicitante <input type="text" [value]="laudo.unidadeSolicitante" readonly /></label>
+            <label>CNES Solicitante <input type="text" [value]="laudo.unidadeCnes" readonly /></label>
+          </div>
+          <div class="grid two">
+            <label>Profissional Solicitante <input type="text" [value]="payloadText(laudo, 'profissional_solicitante')" readonly /></label>
+            <label>Data Solicitacao <input type="text" [value]="formatDate(payloadText(laudo, 'data_solicitacao'))" readonly /></label>
+          </div>
+          <div class="grid two">
+            <label>Tipo Documento <input type="text" [value]="payloadText(laudo, 'tipo_documento')" readonly /></label>
+            <label>Documento <input type="text" [value]="payloadText(laudo, 'documento_solicitante')" readonly /></label>
+          </div>
+        </article>
+      </section>
     </section>
 
     <section *ngIf="isAuthenticated && currentPage == 'admin' && canAccessAdmin">

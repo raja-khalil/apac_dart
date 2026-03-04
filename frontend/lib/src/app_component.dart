@@ -1038,6 +1038,77 @@ class AppComponent implements OnInit {
     batchPrintMode = false;
   }
 
+  List<Laudo> get selectedLaudosInPrintOrder {
+    final ordered = <Laudo>[];
+    for (final laudo in listLaudos) {
+      if (selectedLaudoIds.contains(laudo.id)) {
+        ordered.add(laudo);
+      }
+    }
+    return ordered;
+  }
+
+  String payloadText(Laudo laudo, String key, {String fallback = ''}) {
+    final value = laudo.payload[key];
+    if (value == null) return fallback;
+    final text = value.toString().trim();
+    return text.isEmpty ? fallback : text;
+  }
+
+  String payloadPacienteText(Laudo laudo, String key, {String fallback = ''}) {
+    final paciente =
+        Map<String, dynamic>.from((laudo.payload['paciente'] as Map?) ?? const <String, dynamic>{});
+    final value = paciente[key];
+    if (value == null) return fallback;
+    final text = value.toString().trim();
+    return text.isEmpty ? fallback : text;
+  }
+
+  String laudoEnderecoLinha(Laudo laudo) {
+    final logradouro = payloadPacienteText(laudo, 'logradouro');
+    final numero = payloadPacienteText(laudo, 'numero');
+    final complemento = payloadPacienteText(laudo, 'complemento');
+    final bairro = payloadPacienteText(laudo, 'bairro');
+    final partes = <String>[
+      if (logradouro.isNotEmpty) logradouro,
+      if (numero.isNotEmpty) 'Nº $numero',
+      if (complemento.isNotEmpty) complemento,
+      if (bairro.isNotEmpty) bairro,
+    ];
+    return partes.join(' - ');
+  }
+
+  List<Map<String, String>> laudoSecundarios(Laudo laudo) {
+    final raw = (laudo.payload['procedimentos_secundarios'] as List?) ?? const <dynamic>[];
+    final data = <Map<String, String>>[];
+    for (final item in raw) {
+      final mapped = Map<String, dynamic>.from(item as Map);
+      data.add({
+        'codigo': (mapped['codigo'] ?? '').toString(),
+        'nome': (mapped['nome'] ?? '').toString(),
+        'data_execucao': (mapped['data_execucao'] ?? '').toString(),
+      });
+    }
+    return data;
+  }
+
+  String laudoSecundariosTexto(Laudo laudo) {
+    final itens = laudoSecundarios(laudo);
+    if (itens.isEmpty) return '';
+    final linhas = <String>[];
+    for (final s in itens) {
+      final codigo = (s['codigo'] ?? '').trim();
+      final nome = (s['nome'] ?? '').trim();
+      final dataExec = (s['data_execucao'] ?? '').trim();
+      var linha = '$codigo - $nome'.trim();
+      if (dataExec.isNotEmpty) {
+        linha = '$linha (Data: ${formatDate(dataExec)})';
+      }
+      linhas.add(linha);
+    }
+    return linhas.join('\n');
+  }
+
   Future<void> loadAdminUsers() async {
     if (!canAccessAdmin) return;
     adminLoading = true;
