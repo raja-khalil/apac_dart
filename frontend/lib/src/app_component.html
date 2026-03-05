@@ -785,9 +785,10 @@
             <option
               *ngFor="let sec of adminSecundariosAssociaveis"
               [value]="idAsInt(sec['id'])"
+              [disabled]="idAsInt(sec['id']) <= 0"
               [selected]="adminNovoPriSecIds.contains(idAsInt(sec['id']))"
             >
-              {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}
+              {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}{{ idAsInt(sec['id']) <= 0 ? ' (referencia)' : '' }}
             </option>
           </select>
           <small>Use Ctrl (Windows) ou Command (Mac) para selecionar multiplos itens.</small>
@@ -818,9 +819,10 @@
             <option
               *ngFor="let sec of adminSecundariosAssociaveis"
               [value]="idAsInt(sec['id'])"
+              [disabled]="idAsInt(sec['id']) <= 0"
               [selected]="adminEditPriSecIds.contains(idAsInt(sec['id']))"
             >
-              {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}
+              {{ sec['codigo_sigtap'] }} - {{ sec['descricao'] }}{{ idAsInt(sec['id']) <= 0 ? ' (referencia)' : '' }}
             </option>
           </select>
           <small>Use Ctrl (Windows) ou Command (Mac) para selecionar multiplos itens.</small>
