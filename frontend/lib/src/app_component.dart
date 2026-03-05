@@ -1476,14 +1476,18 @@ class AppComponent implements OnInit {
       secFallback,
       (m) => (m['codigo_sigtap'] ?? '').toString().trim().toLowerCase(),
     )
-        .where((m) => (m['tipo'] ?? 'secundario').toString() == 'secundario')
+        .where((m) =>
+            (m['tipo'] ?? 'secundario').toString().trim().toLowerCase() ==
+            'secundario')
         .toList();
     adminCatalogPrincipais = _mergeCatalogByKey(
       priApi,
       priFallback,
       (m) => (m['codigo_sigtap'] ?? '').toString().trim().toLowerCase(),
     )
-        .where((m) => (m['tipo'] ?? 'principal').toString() == 'principal')
+        .where((m) =>
+            (m['tipo'] ?? 'principal').toString().trim().toLowerCase() ==
+            'principal')
         .toList();
 
     for (final p in adminCatalogPrincipais) {
