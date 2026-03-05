@@ -78,6 +78,8 @@ class AppComponent implements OnInit {
       <Map<String, dynamic>>[];
   List<Map<String, dynamic>> adminCatalogPrincipais = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> adminCatalogSecundarios = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> adminCatalogCategoriasPrincipais =
+      <Map<String, dynamic>>[];
 
   String dashboardUnidadeFilter = 'all';
   String dashboardMonthFilter = 'all';
@@ -110,11 +112,11 @@ class AppComponent implements OnInit {
   String adminNovoEstTipo = 'solicitante';
   String adminNovoSecCodigo = '';
   String adminNovoSecDescricao = '';
-  final Set<int> adminNovoSecPrincipalIds = <int>{};
   String adminNovoPriCodigo = '';
   String adminNovoPriDescricao = '';
   String adminNovoPriCategoria = 'Cardiologia';
   final Set<int> adminNovoPriSecIds = <int>{};
+  String adminNovoCategoriaPrincipal = '';
   String adminCatalogEstFiltroTipo = 'all';
   String adminCatalogEstFiltroStatus = 'all';
   int? adminEditEstId;
@@ -124,12 +126,14 @@ class AppComponent implements OnInit {
   int? adminEditSecId;
   String adminEditSecCodigo = '';
   String adminEditSecDescricao = '';
-  final Set<int> adminEditSecPrincipalIds = <int>{};
   int? adminEditPriId;
   String adminEditPriCodigo = '';
   String adminEditPriDescricao = '';
   String adminEditPriCategoria = '';
   final Set<int> adminEditPriSecIds = <int>{};
+  int? adminEditCategoriaPrincipalId;
+  String adminEditCategoriaPrincipalNome = '';
+  String adminPrincipalSecSearch = '';
   bool adminRoleAdmin = false;
 
   final Map<String, String> _ociCategoriaPorCodigo = <String, String>{};
@@ -250,9 +254,16 @@ class AppComponent implements OnInit {
       _service.hasRole('gestor');
   bool get catalogApiAvailable => _service.catalogRoutesAvailable;
   List<Map<String, dynamic>> get adminSecundariosAssociaveis {
-    return adminCatalogSecundarios
+    final base = adminCatalogSecundarios
         .where((s) => idAsInt(s['id']) > 0 && !isCatalogReadOnly(s))
         .toList();
+    final query = adminPrincipalSecSearch.trim().toLowerCase();
+    if (query.isEmpty) return base;
+    return base.where((s) {
+      final code = (s['codigo_sigtap'] ?? '').toString().toLowerCase();
+      final desc = (s['descricao'] ?? '').toString().toLowerCase();
+      return code.contains(query) || desc.contains(query);
+    }).toList();
   }
 
   List<Map<String, dynamic>> get adminPrincipaisAssociaveis {
@@ -262,9 +273,11 @@ class AppComponent implements OnInit {
   }
 
   List<String> get adminCategoriasPrincipais {
-    final categorias = <String>{
-      ...ociCategoryPrefix.values,
-    };
+    final categorias = <String>{...ociCategoryPrefix.values};
+    for (final c in adminCatalogCategoriasPrincipais) {
+      final nome = (c['nome'] ?? '').toString().trim();
+      if (nome.isNotEmpty) categorias.add(nome);
+    }
     for (final p in adminCatalogPrincipais) {
       final categoria = (p['categoria'] ?? '').toString().trim();
       if (categoria.isNotEmpty) categorias.add(categoria);
@@ -1440,6 +1453,8 @@ class AppComponent implements OnInit {
     final secApi = await _service.fetchCatalogSecundarios(
       includeInativos: true,
     );
+    adminCatalogCategoriasPrincipais =
+        await _service.fetchCatalogCategoriasPrincipais(includeInativos: true);
 
     final estFallback = _fallbackAdminEstabelecimentos();
     final secFallback = _fallbackAdminSecundarios();
@@ -1472,6 +1487,9 @@ class AppComponent implements OnInit {
         p['categoria'] =
             categoriaPorCodigoOci((p['codigo_sigtap'] ?? '').toString());
       }
+    }
+    if (adminNovoPriCategoria.trim().isEmpty && adminCategoriasPrincipais.isNotEmpty) {
+      adminNovoPriCategoria = adminCategoriasPrincipais.first;
     }
   }
 
@@ -1656,32 +1674,17 @@ class AppComponent implements OnInit {
       return;
     }
     try {
-      final created = await _service.createCatalogSecundario(
+      await _service.createCatalogSecundario(
         codigoSigtap: adminNovoSecCodigo.trim(),
         descricao: adminNovoSecDescricao.trim(),
       );
-      final secId = idAsInt(created['id']);
-      final principaisIds =
-          adminNovoSecPrincipalIds.where((e) => e > 0).toList();
-      if (secId > 0 && principaisIds.isNotEmpty) {
-        await _service.setCatalogSecundarioPrincipais(secId, principaisIds);
-      }
       adminNovoSecCodigo = '';
       adminNovoSecDescricao = '';
-      adminNovoSecPrincipalIds.clear();
       await _loadAdminCatalog();
       await _loadCatalogData();
       successMessage = 'Procedimento secundario cadastrado.';
     } catch (error) {
       errorMessage = _errorText(error);
-    }
-  }
-
-  void toggleAdminNovoPriSec(int id, bool checked) {
-    if (checked) {
-      adminNovoPriSecIds.add(id);
-    } else {
-      adminNovoPriSecIds.remove(id);
     }
   }
 
@@ -1787,26 +1790,12 @@ class AppComponent implements OnInit {
     adminEditSecId = idAsInt(sec['id']);
     adminEditSecCodigo = (sec['codigo_sigtap'] ?? '').toString();
     adminEditSecDescricao = (sec['descricao'] ?? '').toString();
-    adminEditSecPrincipalIds.clear();
-    final secId = idAsInt(sec['id']);
-    for (final principal in adminCatalogPrincipais) {
-      final secundarios =
-          (principal['secundarios'] as List?) ?? const <dynamic>[];
-      for (final raw in secundarios) {
-        final secMap = Map<String, dynamic>.from(raw as Map);
-        if (idAsInt(secMap['id']) == secId) {
-          adminEditSecPrincipalIds.add(idAsInt(principal['id']));
-          break;
-        }
-      }
-    }
   }
 
   void cancelEditAdminSecundario() {
     adminEditSecId = null;
     adminEditSecCodigo = '';
     adminEditSecDescricao = '';
-    adminEditSecPrincipalIds.clear();
   }
 
   Future<void> saveEditAdminSecundario() async {
@@ -1825,10 +1814,6 @@ class AppComponent implements OnInit {
         adminEditSecId!,
         codigoSigtap: adminEditSecCodigo.trim(),
         descricao: adminEditSecDescricao.trim(),
-      );
-      await _service.setCatalogSecundarioPrincipais(
-        adminEditSecId!,
-        adminEditSecPrincipalIds.where((e) => e > 0).toList(),
       );
       await _loadAdminCatalog();
       await _loadCatalogData();
@@ -1876,38 +1861,14 @@ class AppComponent implements OnInit {
     adminEditPriSecIds.clear();
   }
 
-  void toggleAdminEditPriSec(int id, bool checked) {
-    if (checked) {
-      adminEditPriSecIds.add(id);
-    } else {
-      adminEditPriSecIds.remove(id);
-    }
-  }
-
-  void toggleAdminNovoSecPrincipal(int id, bool checked) {
-    if (checked) {
-      adminNovoSecPrincipalIds.add(id);
-    } else {
-      adminNovoSecPrincipalIds.remove(id);
-    }
-  }
-
-  void toggleAdminEditSecPrincipal(int id, bool checked) {
-    if (checked) {
-      adminEditSecPrincipalIds.add(id);
-    } else {
-      adminEditSecPrincipalIds.remove(id);
-    }
-  }
-
-  void onAdminNovoSecPrincipaisChanged(dynamic target) {
-    adminNovoSecPrincipalIds
+  void onAdminNovoPriSecundariosChanged(dynamic target) {
+    adminNovoPriSecIds
       ..clear()
       ..addAll(_multiSelectIds(target));
   }
 
-  void onAdminEditSecPrincipaisChanged(dynamic target) {
-    adminEditSecPrincipalIds
+  void onAdminEditPriSecundariosChanged(dynamic target) {
+    adminEditPriSecIds
       ..clear()
       ..addAll(_multiSelectIds(target));
   }
@@ -1964,6 +1925,64 @@ class AppComponent implements OnInit {
       successMessage = ativo
           ? 'Procedimento principal ativado com sucesso.'
           : 'Procedimento principal desativado com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> createAdminCategoriaPrincipal() async {
+    if (adminNovoCategoriaPrincipal.trim().isEmpty) {
+      errorMessage = 'Informe o nome da categoria.';
+      return;
+    }
+    try {
+      await _service
+          .createCatalogCategoriaPrincipal(adminNovoCategoriaPrincipal.trim());
+      adminNovoCategoriaPrincipal = '';
+      await _loadAdminCatalog();
+      successMessage = 'Categoria cadastrada com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  void startEditAdminCategoriaPrincipal(Map<String, dynamic> categoria) {
+    adminEditCategoriaPrincipalId = idAsInt(categoria['id']);
+    adminEditCategoriaPrincipalNome = (categoria['nome'] ?? '').toString();
+  }
+
+  void cancelEditAdminCategoriaPrincipal() {
+    adminEditCategoriaPrincipalId = null;
+    adminEditCategoriaPrincipalNome = '';
+  }
+
+  Future<void> saveEditAdminCategoriaPrincipal() async {
+    if (adminEditCategoriaPrincipalId == null) return;
+    if (adminEditCategoriaPrincipalNome.trim().isEmpty) {
+      errorMessage = 'Informe o nome da categoria.';
+      return;
+    }
+    try {
+      await _service.updateCatalogCategoriaPrincipal(
+        adminEditCategoriaPrincipalId!,
+        adminEditCategoriaPrincipalNome.trim(),
+      );
+      await _loadAdminCatalog();
+      cancelEditAdminCategoriaPrincipal();
+      successMessage = 'Categoria atualizada com sucesso.';
+    } catch (error) {
+      errorMessage = _errorText(error);
+    }
+  }
+
+  Future<void> deleteAdminCategoriaPrincipal(int id) async {
+    try {
+      await _service.deleteCatalogCategoriaPrincipal(id);
+      if (adminEditCategoriaPrincipalId == id) {
+        cancelEditAdminCategoriaPrincipal();
+      }
+      await _loadAdminCatalog();
+      successMessage = 'Categoria excluida com sucesso.';
     } catch (error) {
       errorMessage = _errorText(error);
     }

@@ -1,4 +1,14 @@
 abstract class ICatalogRepository {
+  Future<List<Map<String, dynamic>>> listCategoriasProcedimentoPrincipal({
+    bool includeInativos = false,
+  });
+  Future<Map<String, dynamic>> createCategoriaProcedimentoPrincipal(String nome);
+  Future<Map<String, dynamic>?> updateCategoriaProcedimentoPrincipal({
+    required int id,
+    required String nome,
+  });
+  Future<bool> deleteCategoriaProcedimentoPrincipal(int id);
+
   Future<List<Map<String, dynamic>>> listEstabelecimentos({
     String? tipo,
     bool includeInativos = false,

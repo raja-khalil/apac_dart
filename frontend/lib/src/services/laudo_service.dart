@@ -479,6 +479,92 @@ class LaudoService {
     });
   }
 
+  Future<List<Map<String, dynamic>>> fetchCatalogCategoriasPrincipais({
+    bool includeInativos = false,
+  }) async {
+    return _executeWithRecovery((baseUrl) async {
+      final uri = Uri.parse('$baseUrl/catalog/categorias/principais').replace(
+        queryParameters: includeInativos
+            ? <String, String>{'include_inativos': 'true'}
+            : null,
+      );
+      final response =
+          await _client.get(uri, headers: _headers()).timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode == 404) return <Map<String, dynamic>>[];
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = (payload['data'] as List?) ?? const <dynamic>[];
+      return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    });
+  }
+
+  Future<Map<String, dynamic>> createCatalogCategoriaPrincipal(String nome) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/catalog/categorias/principais'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'nome': nome}),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 201) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+    });
+  }
+
+  Future<Map<String, dynamic>> updateCatalogCategoriaPrincipal(int id, String nome) async {
+    return _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .put(
+            Uri.parse('$baseUrl/catalog/categorias/principais/$id'),
+            headers: _headers(includeJson: true),
+            body: jsonEncode({'nome': nome}),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      return Map<String, dynamic>.from((payload['data'] as Map?) ?? <String, dynamic>{});
+    });
+  }
+
+  Future<void> deleteCatalogCategoriaPrincipal(int id) async {
+    await _executeWithRecovery((baseUrl) async {
+      final response = await _client
+          .delete(
+            Uri.parse('$baseUrl/catalog/categorias/principais/$id'),
+            headers: _headers(),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        throw UnauthorizedException();
+      }
+      if (response.statusCode != 200) {
+        throw Exception(_extractError(response.body, response.statusCode));
+      }
+      return true;
+    });
+  }
+
   Future<List<Map<String, dynamic>>> fetchCatalogPrincipais({
     bool includeInativos = false,
   }) async {

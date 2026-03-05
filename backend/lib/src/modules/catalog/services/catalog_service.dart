@@ -5,6 +5,30 @@ class CatalogService {
 
   final ICatalogRepository _repository;
 
+  Future<List<Map<String, dynamic>>> listCategoriasProcedimentoPrincipal({
+    bool includeInativos = false,
+  }) {
+    return _repository.listCategoriasProcedimentoPrincipal(
+      includeInativos: includeInativos,
+    );
+  }
+
+  Future<Map<String, dynamic>> createCategoriaProcedimentoPrincipal(
+      String nome) {
+    return _repository.createCategoriaProcedimentoPrincipal(nome);
+  }
+
+  Future<Map<String, dynamic>?> updateCategoriaProcedimentoPrincipal({
+    required int id,
+    required String nome,
+  }) {
+    return _repository.updateCategoriaProcedimentoPrincipal(id: id, nome: nome);
+  }
+
+  Future<bool> deleteCategoriaProcedimentoPrincipal(int id) {
+    return _repository.deleteCategoriaProcedimentoPrincipal(id);
+  }
+
   Future<List<Map<String, dynamic>>> listEstabelecimentos({
     String? tipo,
     bool includeInativos = false,

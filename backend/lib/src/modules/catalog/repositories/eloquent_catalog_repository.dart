@@ -29,6 +29,75 @@ class EloquentCatalogRepository implements ICatalogRepository {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> listCategoriasProcedimentoPrincipal({
+    bool includeInativos = false,
+  }) async {
+    dynamic q = _db.table('procedimento_categorias_v2').select([
+      'id',
+      'nome',
+      'ativo',
+      'created_at',
+      'updated_at',
+    ]);
+    if (!includeInativos) {
+      q = q.where('ativo', '=', true);
+    }
+    final rows = await q.orderBy('nome', 'asc').get();
+    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  @override
+  Future<Map<String, dynamic>> createCategoriaProcedimentoPrincipal(
+      String nome) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    final id = await _db.table('procedimento_categorias_v2').insertGetId({
+      'nome': nome.trim(),
+      'ativo': true,
+      'created_at': now,
+      'updated_at': now,
+    }, 'id');
+    final rows = await _db
+        .table('procedimento_categorias_v2')
+        .select(['id', 'nome', 'ativo', 'created_at', 'updated_at'])
+        .where('id', '=', (id as num).toInt())
+        .limit(1)
+        .get();
+    return Map<String, dynamic>.from((rows as List).first as Map);
+  }
+
+  @override
+  Future<Map<String, dynamic>?> updateCategoriaProcedimentoPrincipal({
+    required int id,
+    required String nome,
+  }) async {
+    final exists = await _db
+        .table('procedimento_categorias_v2')
+        .select(['id'])
+        .where('id', '=', id)
+        .limit(1)
+        .get();
+    if ((exists as List).isEmpty) return null;
+    await _db.table('procedimento_categorias_v2').where('id', '=', id).update({
+      'nome': nome.trim(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+    final rows = await _db
+        .table('procedimento_categorias_v2')
+        .select(['id', 'nome', 'ativo', 'created_at', 'updated_at'])
+        .where('id', '=', id)
+        .limit(1)
+        .get();
+    return Map<String, dynamic>.from((rows as List).first as Map);
+  }
+
+  @override
+  Future<bool> deleteCategoriaProcedimentoPrincipal(int id) async {
+    final affected =
+        await _db.table('procedimento_categorias_v2').where('id', '=', id).delete();
+    return affected > 0;
+  }
+
+  @override
   Future<List<Map<String, dynamic>>> listEstabelecimentos({
     String? tipo,
     bool includeInativos = false,

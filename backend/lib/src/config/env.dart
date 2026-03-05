@@ -122,6 +122,16 @@ class Database {
     ''');
 
     await _connection.execute('''
+      CREATE TABLE IF NOT EXISTS public.procedimento_categorias_v2 (
+        id BIGSERIAL PRIMARY KEY,
+        nome TEXT NOT NULL,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    ''');
+
+    await _connection.execute('''
       CREATE TABLE IF NOT EXISTS public.procedimentos_v2 (
         id BIGSERIAL PRIMARY KEY,
         codigo_sigtap VARCHAR(20) NOT NULL,
@@ -276,6 +286,9 @@ class Database {
     );
     await _connection.execute(
       'CREATE INDEX IF NOT EXISTS idx_estabelecimentos_v2_cnes ON public.estabelecimentos_v2(cnes)',
+    );
+    await _connection.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_procedimento_categorias_v2_nome_uq ON public.procedimento_categorias_v2(nome)',
     );
     await _connection.execute(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_procedimentos_v2_codigo_uq ON public.procedimentos_v2(codigo_sigtap)',

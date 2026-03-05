@@ -3,6 +3,10 @@ import 'package:shelf_router/shelf_router.dart';
 
 Router buildCatalogRoutes(CatalogController controller) {
   final router = Router()
+    ..get('/catalog/categorias/principais', controller.listCategoriasProcedimentoPrincipal)
+    ..post('/catalog/categorias/principais', controller.createCategoriaProcedimentoPrincipal)
+    ..put('/catalog/categorias/principais/<id>', controller.updateCategoriaProcedimentoPrincipal)
+    ..delete('/catalog/categorias/principais/<id>', controller.deleteCategoriaProcedimentoPrincipal)
     ..get('/catalog/estabelecimentos', controller.listEstabelecimentos)
     ..post('/catalog/estabelecimentos', controller.createEstabelecimento)
     ..put('/catalog/estabelecimentos/<id>', controller.updateEstabelecimento)

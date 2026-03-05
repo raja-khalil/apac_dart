@@ -30,6 +30,64 @@ class CatalogController {
     return '${truncated.substring(0, 2)}.${truncated.substring(2, 4)}.${truncated.substring(4, 6)}.${truncated.substring(6, 9)}-${truncated.substring(9)}';
   }
 
+  Future<Response> listCategoriasProcedimentoPrincipal(Request request) async {
+    final includeInativos =
+        (request.url.queryParameters['include_inativos'] ?? '').toLowerCase() ==
+            'true';
+    final data = await _service.listCategoriasProcedimentoPrincipal(
+      includeInativos: includeInativos,
+    );
+    return _json({'data': data});
+  }
+
+  Future<Response> createCategoriaProcedimentoPrincipal(Request request) async {
+    final denied = _forbiddenIfNotAdmin(request);
+    if (denied != null) return denied;
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final nome = (payload['nome'] ?? '').toString().trim();
+    if (nome.isEmpty) {
+      return _json({'error': 'Nome da categoria e obrigatorio.'}, status: 422);
+    }
+    try {
+      final item = await _service.createCategoriaProcedimentoPrincipal(nome);
+      return _json({'data': item}, status: 201);
+    } catch (error) {
+      return _json({'error': _friendlyError(error)}, status: 422);
+    }
+  }
+
+  Future<Response> updateCategoriaProcedimentoPrincipal(
+      Request request, String id) async {
+    final denied = _forbiddenIfNotAdmin(request);
+    if (denied != null) return denied;
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) return _json({'error': 'ID invalido.'}, status: 400);
+    final payload = await _readPayload(request);
+    if (payload == null) return _json({'error': 'JSON invalido.'}, status: 400);
+    final nome = (payload['nome'] ?? '').toString().trim();
+    if (nome.isEmpty) {
+      return _json({'error': 'Nome da categoria e obrigatorio.'}, status: 422);
+    }
+    final item = await _service.updateCategoriaProcedimentoPrincipal(
+      id: parsedId,
+      nome: nome,
+    );
+    if (item == null) return _json({'error': 'Nao encontrado.'}, status: 404);
+    return _json({'data': item});
+  }
+
+  Future<Response> deleteCategoriaProcedimentoPrincipal(
+      Request request, String id) async {
+    final denied = _forbiddenIfNotAdmin(request);
+    if (denied != null) return denied;
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) return _json({'error': 'ID invalido.'}, status: 400);
+    final ok = await _service.deleteCategoriaProcedimentoPrincipal(parsedId);
+    if (!ok) return _json({'error': 'Nao encontrado.'}, status: 404);
+    return _json({'message': 'Categoria removida com sucesso.'});
+  }
+
   Future<Response> listEstabelecimentos(Request request) async {
     final tipo = request.url.queryParameters['tipo'];
     final includeInativos =
@@ -288,6 +346,9 @@ class CatalogController {
     final raw = error.toString().replaceFirst('Bad state: ', '');
     if (raw.contains('idx_procedimentos_v2_codigo_uq')) {
       return 'Codigo SIGTAP ja cadastrado. Use outro codigo ou edite o existente.';
+    }
+    if (raw.contains('idx_procedimento_categorias_v2_nome_uq')) {
+      return 'Categoria ja cadastrada.';
     }
     return raw;
   }

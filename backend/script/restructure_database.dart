@@ -55,6 +55,7 @@ Future<void> _dropTables(Connection db) async {
     DROP TABLE IF EXISTS public.laudo_procedimentos_secundarios_v2 CASCADE;
     DROP TABLE IF EXISTS public.laudos_v2 CASCADE;
     DROP TABLE IF EXISTS public.procedimento_principal_secundario_v2 CASCADE;
+    DROP TABLE IF EXISTS public.procedimento_categorias_v2 CASCADE;
     DROP TABLE IF EXISTS public.procedimentos_v2 CASCADE;
     DROP TABLE IF EXISTS public.estabelecimentos_v2 CASCADE;
     DROP TABLE IF EXISTS public.pacientes_v2 CASCADE;
@@ -115,6 +116,14 @@ Future<void> _createTables(Connection db) async {
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
       PRIMARY KEY (principal_id, secundario_id),
       CONSTRAINT proc_princ_sec_diff_chk CHECK (principal_id <> secundario_id)
+    );
+
+    CREATE TABLE public.procedimento_categorias_v2 (
+      id BIGSERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE public.laudos_v2 (
@@ -224,6 +233,8 @@ Future<void> _createIndexes(Connection db) async {
       'CREATE INDEX idx_estabelecimentos_v2_cnes ON public.estabelecimentos_v2(cnes)');
   await db.execute(
       'CREATE UNIQUE INDEX idx_procedimentos_v2_codigo_uq ON public.procedimentos_v2(codigo_sigtap)');
+  await db.execute(
+      'CREATE UNIQUE INDEX idx_procedimento_categorias_v2_nome_uq ON public.procedimento_categorias_v2(nome)');
   await db.execute(
       'CREATE INDEX idx_proc_princ_sec_principal_id ON public.procedimento_principal_secundario_v2(principal_id)');
   await db.execute(
