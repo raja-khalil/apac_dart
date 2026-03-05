@@ -255,7 +255,12 @@ class AppComponent implements OnInit {
   bool get catalogApiAvailable => _service.catalogRoutesAvailable;
   List<Map<String, dynamic>> get adminSecundariosAssociaveis {
     final base = adminCatalogSecundarios
-        .where((s) => idAsInt(s['id']) > 0 && !isCatalogReadOnly(s))
+        .where((s) =>
+            idAsInt(s['id']) > 0 &&
+            !isCatalogReadOnly(s) &&
+            isAtivo(s['ativo']) &&
+            (s['codigo_sigtap'] ?? '').toString().trim().isNotEmpty &&
+            (s['descricao'] ?? '').toString().trim().isNotEmpty)
         .toList();
     final query = adminPrincipalSecSearch.trim().toLowerCase();
     if (query.isEmpty) return base;
@@ -2072,7 +2077,11 @@ class AppComponent implements OnInit {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  bool isAtivo(dynamic value) => value == true || value == 1;
+  bool isAtivo(dynamic value) {
+    if (value == true || value == 1) return true;
+    final normalized = value?.toString().trim().toLowerCase() ?? '';
+    return normalized == 'true' || normalized == 't' || normalized == '1';
+  }
 
   bool isCatalogReadOnly(Map<String, dynamic> item) => item['readonly'] == true;
 
