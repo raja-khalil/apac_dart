@@ -661,17 +661,20 @@
             <button type="button" (click)="createAdminSecundario()">Adicionar</button>
           </div>
         </div>
-        <div class="admin-roles">
-          <label class="checkbox-line" *ngFor="let p of adminPrincipaisAssociaveis">
-            <input
-              type="checkbox"
-              [checked]="adminNovoSecPrincipalIds.contains(idAsInt(p['id']))"
-              (change)="toggleAdminNovoSecPrincipal(idAsInt(p['id']), $event.target.checked)"
-            />
-            {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
-          </label>
-          <div class="empty" *ngIf="adminPrincipaisAssociaveis.isEmpty">Nenhum procedimento principal ativo para associar.</div>
-        </div>
+        <label>
+          Associar com Procedimentos Principais (OCI)
+          <select multiple class="multi-select" (change)="onAdminNovoSecPrincipaisChanged($event.target)">
+            <option
+              *ngFor="let p of adminPrincipaisAssociaveis"
+              [value]="idAsInt(p['id'])"
+              [selected]="adminNovoSecPrincipalIds.contains(idAsInt(p['id']))"
+            >
+              {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
+            </option>
+          </select>
+          <small>Use Ctrl (Windows) ou Command (Mac) para selecionar multiplos itens.</small>
+        </label>
+        <div class="empty" *ngIf="adminPrincipaisAssociaveis.isEmpty">Nenhum procedimento principal ativo para associar.</div>
         <div class="admin-form-grid" *ngIf="adminEditSecId != null">
           <label>Editar codigo <input type="text" [ngModel]="adminEditSecCodigo" (ngModelChange)="onAdminEditSecCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
           <label>Editar descricao <input type="text" [(ngModel)]="adminEditSecDescricao" [maxlength]="255" /></label>
@@ -680,17 +683,20 @@
             <button type="button" class="secondary" (click)="cancelEditAdminSecundario()">Cancelar</button>
           </div>
         </div>
-        <div class="admin-roles" *ngIf="adminEditSecId != null">
-          <label class="checkbox-line" *ngFor="let p of adminPrincipaisAssociaveis">
-            <input
-              type="checkbox"
-              [checked]="adminEditSecPrincipalIds.contains(idAsInt(p['id']))"
-              (change)="toggleAdminEditSecPrincipal(idAsInt(p['id']), $event.target.checked)"
-            />
-            {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
-          </label>
-          <div class="empty" *ngIf="adminPrincipaisAssociaveis.isEmpty">Nenhum procedimento principal ativo para associar.</div>
-        </div>
+        <label *ngIf="adminEditSecId != null">
+          Associar com Procedimentos Principais (OCI)
+          <select multiple class="multi-select" (change)="onAdminEditSecPrincipaisChanged($event.target)">
+            <option
+              *ngFor="let p of adminPrincipaisAssociaveis"
+              [value]="idAsInt(p['id'])"
+              [selected]="adminEditSecPrincipalIds.contains(idAsInt(p['id']))"
+            >
+              {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
+            </option>
+          </select>
+          <small>Use Ctrl (Windows) ou Command (Mac) para selecionar multiplos itens.</small>
+        </label>
+        <div class="empty" *ngIf="adminEditSecId != null && adminPrincipaisAssociaveis.isEmpty">Nenhum procedimento principal ativo para associar.</div>
         <table>
           <thead>
             <tr>

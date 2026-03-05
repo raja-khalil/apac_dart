@@ -1900,6 +1900,30 @@ class AppComponent implements OnInit {
     }
   }
 
+  void onAdminNovoSecPrincipaisChanged(dynamic target) {
+    adminNovoSecPrincipalIds
+      ..clear()
+      ..addAll(_multiSelectIds(target));
+  }
+
+  void onAdminEditSecPrincipaisChanged(dynamic target) {
+    adminEditSecPrincipalIds
+      ..clear()
+      ..addAll(_multiSelectIds(target));
+  }
+
+  List<int> _multiSelectIds(dynamic target) {
+    final ids = <int>[];
+    if (target is! html.SelectElement) return ids;
+    for (final option in target.options) {
+      if (option.selected) {
+        final id = int.tryParse(option.value);
+        if (id != null && id > 0) ids.add(id);
+      }
+    }
+    return ids;
+  }
+
   Future<void> saveEditAdminPrincipal() async {
     if (adminEditPriId == null) return;
     if (adminEditPriCodigo.trim().isEmpty ||

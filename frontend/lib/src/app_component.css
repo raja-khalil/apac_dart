@@ -841,6 +841,10 @@ textarea {
   font-size: var(--fz-md);
 }
 
+.multi-select {
+  min-height: 140px;
+}
+
 .admin-catalog-filters {
   display: grid;
   gap: var(--s-3);
