@@ -101,6 +101,7 @@ Future<void> _createTables(Connection db) async {
       id BIGSERIAL PRIMARY KEY,
       codigo_sigtap VARCHAR(20) NOT NULL,
       descricao TEXT NOT NULL,
+      categoria TEXT NOT NULL DEFAULT '',
       tipo VARCHAR(20) NOT NULL DEFAULT 'principal',
       ativo BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),

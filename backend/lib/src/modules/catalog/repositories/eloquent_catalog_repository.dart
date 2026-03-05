@@ -142,6 +142,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
           'id',
           'codigo_sigtap',
           'descricao',
+          'categoria',
           'tipo',
           'ativo',
           'created_at',
@@ -211,6 +212,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
     final id = await _db.table('procedimentos_v2').insertGetId({
       'codigo_sigtap': _normalizeSigtap(codigoSigtap.trim()),
       'descricao': descricao.trim(),
+      'categoria': '',
       'tipo': 'secundario',
       'ativo': true,
       'created_at': now,
@@ -222,6 +224,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
           'id',
           'codigo_sigtap',
           'descricao',
+          'categoria',
           'tipo',
           'ativo',
           'created_at',
@@ -237,12 +240,14 @@ class EloquentCatalogRepository implements ICatalogRepository {
   Future<Map<String, dynamic>> createProcedimentoPrincipal({
     required String codigoSigtap,
     required String descricao,
+    required String categoria,
     required List<int> secundariosIds,
   }) async {
     final now = DateTime.now().toUtc().toIso8601String();
     final id = await _db.table('procedimentos_v2').insertGetId({
       'codigo_sigtap': _normalizeSigtap(codigoSigtap.trim()),
       'descricao': descricao.trim(),
+      'categoria': categoria.trim(),
       'tipo': 'principal',
       'ativo': true,
       'created_at': now,
@@ -262,6 +267,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
           'id',
           'codigo_sigtap',
           'descricao',
+          'categoria',
           'tipo',
           'ativo',
           'created_at',
@@ -278,6 +284,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
     required int id,
     String? codigoSigtap,
     String? descricao,
+    String? categoria,
     List<int>? secundariosIds,
   }) async {
     final rows = await _db
@@ -294,6 +301,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
       updates['codigo_sigtap'] = _normalizeSigtap(codigoSigtap.trim());
     }
     if (descricao != null) updates['descricao'] = descricao.trim();
+    if (categoria != null) updates['categoria'] = categoria.trim();
     await _db.table('procedimentos_v2').where('id', '=', id).update(updates);
 
     if (tipo == 'principal' && secundariosIds != null) {
@@ -316,6 +324,7 @@ class EloquentCatalogRepository implements ICatalogRepository {
           'id',
           'codigo_sigtap',
           'descricao',
+          'categoria',
           'tipo',
           'ativo',
           'created_at',

@@ -658,6 +658,7 @@ class LaudoService {
   Future<void> createCatalogPrincipal({
     required String codigoSigtap,
     required String descricao,
+    required String categoria,
     required List<int> secundariosIds,
   }) async {
     await _executeWithRecovery((baseUrl) async {
@@ -668,6 +669,7 @@ class LaudoService {
             body: jsonEncode({
               'codigo_sigtap': codigoSigtap,
               'descricao': descricao,
+              'categoria': categoria,
               'secundarios_ids': secundariosIds,
             }),
           )
@@ -726,6 +728,7 @@ class LaudoService {
     int id, {
     required String codigoSigtap,
     required String descricao,
+    String? categoria,
     List<int>? secundariosIds,
   }) async {
     return _executeWithRecovery((baseUrl) async {
@@ -735,6 +738,9 @@ class LaudoService {
       };
       if (secundariosIds != null) {
         payload['secundarios_ids'] = secundariosIds;
+      }
+      if (categoria != null) {
+        payload['categoria'] = categoria;
       }
       final response = await _client
           .put(

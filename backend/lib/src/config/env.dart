@@ -31,8 +31,7 @@ class EnvConfig {
   static bool get smtpUseSsl =>
       (Platform.environment['SMTP_SSL'] ?? 'false').toLowerCase() == 'true';
   static bool get smtpAllowInsecure =>
-      (Platform.environment['SMTP_ALLOW_INSECURE'] ?? 'false')
-          .toLowerCase() ==
+      (Platform.environment['SMTP_ALLOW_INSECURE'] ?? 'false').toLowerCase() ==
       'true';
   static bool get smtpConfigured =>
       smtpHost.isNotEmpty &&
@@ -127,12 +126,18 @@ class Database {
         id BIGSERIAL PRIMARY KEY,
         codigo_sigtap VARCHAR(20) NOT NULL,
         descricao TEXT NOT NULL,
+        categoria TEXT NOT NULL DEFAULT '',
         tipo VARCHAR(20) NOT NULL DEFAULT 'principal',
         ativo BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
         CONSTRAINT procedimentos_v2_tipo_chk CHECK (tipo IN ('principal', 'secundario'))
       );
+    ''');
+
+    await _connection.execute('''
+      ALTER TABLE public.procedimentos_v2
+      ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEFAULT '';
     ''');
 
     await _connection.execute('''

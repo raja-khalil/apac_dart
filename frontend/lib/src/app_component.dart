@@ -113,6 +113,7 @@ class AppComponent implements OnInit {
   final Set<int> adminNovoSecPrincipalIds = <int>{};
   String adminNovoPriCodigo = '';
   String adminNovoPriDescricao = '';
+  String adminNovoPriCategoria = 'Cardiologia';
   final Set<int> adminNovoPriSecIds = <int>{};
   String adminCatalogEstFiltroTipo = 'all';
   String adminCatalogEstFiltroStatus = 'all';
@@ -127,8 +128,11 @@ class AppComponent implements OnInit {
   int? adminEditPriId;
   String adminEditPriCodigo = '';
   String adminEditPriDescricao = '';
+  String adminEditPriCategoria = '';
   final Set<int> adminEditPriSecIds = <int>{};
   bool adminRoleAdmin = false;
+
+  final Map<String, String> _ociCategoriaPorCodigo = <String, String>{};
 
   int? editingId;
   bool viewOnly = false;
@@ -175,10 +179,14 @@ class AppComponent implements OnInit {
       <Map<String, String>>[];
 
   List<Estabelecimento> get solicitantes {
-    final source = catalogSolicitantes.isNotEmpty
-        ? catalogSolicitantes
-        : estabelecimentosSolicitantes;
-    final list = List<Estabelecimento>.from(source);
+    final merged = <String, Estabelecimento>{};
+    for (final est in estabelecimentosSolicitantes) {
+      merged[est.cnes] = est;
+    }
+    for (final est in catalogSolicitantes) {
+      merged[est.cnes] = est;
+    }
+    final list = merged.values.toList();
     list.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
     return list;
   }
@@ -191,11 +199,32 @@ class AppComponent implements OnInit {
     }).toList();
   }
 
-  List<Estabelecimento> get executantes => catalogExecutantes.isNotEmpty
-      ? catalogExecutantes
-      : estabelecimentosExecutantes;
-  List<OciProcedimento> get ocis =>
-      catalogOcis.isNotEmpty ? catalogOcis : ociProcedimentos;
+  List<Estabelecimento> get executantes {
+    final merged = <String, Estabelecimento>{};
+    for (final est in estabelecimentosExecutantes) {
+      merged[est.cnes] = est;
+    }
+    for (final est in catalogExecutantes) {
+      merged[est.cnes] = est;
+    }
+    final list = merged.values.toList();
+    list.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+    return list;
+  }
+
+  List<OciProcedimento> get ocis {
+    final merged = <String, OciProcedimento>{};
+    for (final oci in ociProcedimentos) {
+      merged[oci.codigo] = oci;
+    }
+    for (final oci in catalogOcis) {
+      merged[oci.codigo] = oci;
+    }
+    final list = merged.values.toList();
+    list.sort((a, b) => a.codigo.compareTo(b.codigo));
+    return list;
+  }
+
   List<String> get statusList => statusOptions;
   List<Map<String, dynamic>> get adminCatalogEstabelecimentosFiltrados {
     final out = <Map<String, dynamic>>[];
@@ -232,16 +261,28 @@ class AppComponent implements OnInit {
         .toList();
   }
 
+  List<String> get adminCategoriasPrincipais {
+    final categorias = <String>{
+      ...ociCategoryPrefix.values,
+    };
+    for (final p in adminCatalogPrincipais) {
+      final categoria = (p['categoria'] ?? '').toString().trim();
+      if (categoria.isNotEmpty) categorias.add(categoria);
+    }
+    final list = categorias.toList();
+    list.sort();
+    return list;
+  }
+
   List<String> get ociCategorias {
     final categories =
-        ocis.map((o) => categoriaPorCodigoOci(o.codigo)).toSet().toList();
+        ocis.map((o) => _categoriaOci(o.codigo)).toSet().toList();
     categories.sort();
     return categories;
   }
 
   List<OciProcedimento> ocisPorCategoria(String categoria) {
-    final filtered =
-        ocis.where((o) => categoriaPorCodigoOci(o.codigo) == categoria);
+    final filtered = ocis.where((o) => _categoriaOci(o.codigo) == categoria);
     if (ociSearch.trim().isEmpty) {
       return filtered.toList();
     }
@@ -589,6 +630,7 @@ class AppComponent implements OnInit {
     final executantesRows =
         await _service.fetchCatalogEstabelecimentos(tipo: 'executante');
     final principaisRows = await _service.fetchCatalogPrincipais();
+    _ociCategoriaPorCodigo.clear();
 
     catalogSolicitantes = solicitantesRows
         .map(
@@ -607,6 +649,11 @@ class AppComponent implements OnInit {
         )
         .toList();
     catalogOcis = principaisRows.map((e) {
+      final codigo = (e['codigo_sigtap'] ?? '').toString();
+      final categoria = (e['categoria'] ?? '').toString().trim();
+      if (codigo.isNotEmpty && categoria.isNotEmpty) {
+        _ociCategoriaPorCodigo[codigo] = categoria;
+      }
       final secundarios = ((e['secundarios'] as List?) ?? const <dynamic>[])
           .map((s) => Map<String, dynamic>.from(s as Map))
           .map(
@@ -617,7 +664,7 @@ class AppComponent implements OnInit {
           )
           .toList();
       return OciProcedimento(
-        codigo: (e['codigo_sigtap'] ?? '').toString(),
+        codigo: codigo,
         nome: (e['descricao'] ?? '').toString(),
         secundarios: secundarios,
       );
@@ -1418,6 +1465,14 @@ class AppComponent implements OnInit {
     )
         .where((m) => (m['tipo'] ?? 'principal').toString() == 'principal')
         .toList();
+
+    for (final p in adminCatalogPrincipais) {
+      final categoriaAtual = (p['categoria'] ?? '').toString().trim();
+      if (categoriaAtual.isEmpty) {
+        p['categoria'] =
+            categoriaPorCodigoOci((p['codigo_sigtap'] ?? '').toString());
+      }
+    }
   }
 
   List<Map<String, dynamic>> _mergeCatalogByKey(
@@ -1538,6 +1593,7 @@ class AppComponent implements OnInit {
         'id': id--,
         'codigo_sigtap': oci.codigo,
         'descricao': oci.nome,
+        'categoria': categoriaPorCodigoOci(oci.codigo),
         'tipo': 'principal',
         'ativo': true,
         'readonly': true,
@@ -1639,14 +1695,20 @@ class AppComponent implements OnInit {
       errorMessage = 'Codigo SIGTAP deve estar no formato 00.00.00.000-0.';
       return;
     }
+    if (adminNovoPriCategoria.trim().isEmpty) {
+      errorMessage = 'Informe a categoria do procedimento principal.';
+      return;
+    }
     try {
       await _service.createCatalogPrincipal(
         codigoSigtap: adminNovoPriCodigo.trim(),
         descricao: adminNovoPriDescricao.trim(),
+        categoria: adminNovoPriCategoria.trim(),
         secundariosIds: adminNovoPriSecIds.where((e) => e > 0).toList(),
       );
       adminNovoPriCodigo = '';
       adminNovoPriDescricao = '';
+      adminNovoPriCategoria = 'Cardiologia';
       adminNovoPriSecIds.clear();
       await _loadAdminCatalog();
       await _loadCatalogData();
@@ -1794,6 +1856,10 @@ class AppComponent implements OnInit {
     adminEditPriId = idAsInt(pri['id']);
     adminEditPriCodigo = (pri['codigo_sigtap'] ?? '').toString();
     adminEditPriDescricao = (pri['descricao'] ?? '').toString();
+    adminEditPriCategoria = (pri['categoria'] ?? '').toString().trim();
+    if (adminEditPriCategoria.isEmpty) {
+      adminEditPriCategoria = categoriaPorCodigoOci(adminEditPriCodigo);
+    }
     adminEditPriSecIds.clear();
     final secundarios = (pri['secundarios'] as List?) ?? const <dynamic>[];
     for (final raw in secundarios) {
@@ -1806,6 +1872,7 @@ class AppComponent implements OnInit {
     adminEditPriId = null;
     adminEditPriCodigo = '';
     adminEditPriDescricao = '';
+    adminEditPriCategoria = '';
     adminEditPriSecIds.clear();
   }
 
@@ -1844,11 +1911,16 @@ class AppComponent implements OnInit {
       errorMessage = 'Codigo SIGTAP deve estar no formato 00.00.00.000-0.';
       return;
     }
+    if (adminEditPriCategoria.trim().isEmpty) {
+      errorMessage = 'Informe a categoria do procedimento principal.';
+      return;
+    }
     try {
       await _service.updateCatalogProcedimento(
         adminEditPriId!,
         codigoSigtap: adminEditPriCodigo.trim(),
         descricao: adminEditPriDescricao.trim(),
+        categoria: adminEditPriCategoria.trim(),
         secundariosIds: adminEditPriSecIds.where((e) => e > 0).toList(),
       );
       await _loadAdminCatalog();
@@ -2005,6 +2077,14 @@ class AppComponent implements OnInit {
   }
 
   String _categoryForCode(String code) {
+    return _categoriaOci(code);
+  }
+
+  String _categoriaOci(String code) {
+    final fromCatalog = _ociCategoriaPorCodigo[code];
+    if (fromCatalog != null && fromCatalog.trim().isNotEmpty) {
+      return fromCatalog.trim();
+    }
     return categoriaPorCodigoOci(code);
   }
 

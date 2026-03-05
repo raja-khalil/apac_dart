@@ -670,6 +670,7 @@
             />
             {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
           </label>
+          <div class="empty" *ngIf="adminPrincipaisAssociaveis.isEmpty">Nenhum procedimento principal ativo para associar.</div>
         </div>
         <div class="admin-form-grid" *ngIf="adminEditSecId != null">
           <label>Editar codigo <input type="text" [ngModel]="adminEditSecCodigo" (ngModelChange)="onAdminEditSecCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
@@ -688,6 +689,7 @@
             />
             {{ p['codigo_sigtap'] }} - {{ p['descricao'] }}
           </label>
+          <div class="empty" *ngIf="adminPrincipaisAssociaveis.isEmpty">Nenhum procedimento principal ativo para associar.</div>
         </div>
         <table>
           <thead>
@@ -737,6 +739,17 @@
         <div class="admin-form-grid">
           <label>Codigo SIGTAP <input type="text" [ngModel]="adminNovoPriCodigo" (ngModelChange)="onAdminNovoPriCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
           <label>Descricao <input type="text" [(ngModel)]="adminNovoPriDescricao" [maxlength]="255" /></label>
+          <label>
+            Categoria
+            <input type="text" [(ngModel)]="adminNovoPriCategoria" placeholder="Ex.: Cardiologia" />
+          </label>
+          <label>
+            Categorias existentes
+            <select [ngModel]="adminNovoPriCategoria" (ngModelChange)="adminNovoPriCategoria = $event">
+              <option value="">Selecionar categoria existente</option>
+              <option *ngFor="let cat of adminCategoriasPrincipais" [value]="cat">{{ cat }}</option>
+            </select>
+          </label>
           <div class="list-actions">
             <button type="button" (click)="createAdminPrincipal()">Adicionar</button>
           </div>
@@ -755,6 +768,17 @@
         <div class="admin-form-grid" *ngIf="adminEditPriId != null">
           <label>Editar codigo <input type="text" [ngModel]="adminEditPriCodigo" (ngModelChange)="onAdminEditPriCodigoChanged($event)" [maxlength]="14" placeholder="00.00.00.000-0" /></label>
           <label>Editar descricao <input type="text" [(ngModel)]="adminEditPriDescricao" [maxlength]="255" /></label>
+          <label>
+            Categoria
+            <input type="text" [(ngModel)]="adminEditPriCategoria" placeholder="Ex.: Cardiologia" />
+          </label>
+          <label>
+            Categorias existentes
+            <select [ngModel]="adminEditPriCategoria" (ngModelChange)="adminEditPriCategoria = $event">
+              <option value="">Selecionar categoria existente</option>
+              <option *ngFor="let cat of adminCategoriasPrincipais" [value]="cat">{{ cat }}</option>
+            </select>
+          </label>
           <div class="list-actions">
             <button type="button" (click)="saveEditAdminPrincipal()">Salvar</button>
             <button type="button" class="secondary" (click)="cancelEditAdminPrincipal()">Cancelar</button>
@@ -776,6 +800,7 @@
             <tr>
               <th>CODIGO</th>
               <th>DESCRICAO</th>
+              <th>CATEGORIA</th>
               <th>SECUNDARIOS</th>
               <th>STATUS</th>
               <th>ACOES</th>
@@ -785,6 +810,7 @@
             <tr *ngFor="let p of adminCatalogPrincipais">
               <td>{{ p['codigo_sigtap'] }}</td>
               <td>{{ p['descricao'] }}</td>
+              <td>{{ p['categoria'] }}</td>
               <td>{{ secundariosCodesText(p['secundarios']) }}</td>
               <td>{{ catalogStatusLabel(p) }}</td>
               <td>

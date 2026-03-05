@@ -65,8 +65,7 @@ class CatalogController {
           nome: nome, cnes: cnes, tipo: tipo);
       return _json({'data': item}, status: 201);
     } catch (error) {
-      return _json({'error': error.toString().replaceFirst('Bad state: ', '')},
-          status: 422);
+      return _json({'error': _friendlyError(error)}, status: 422);
     }
   }
 
@@ -157,8 +156,7 @@ class CatalogController {
       );
       return _json({'data': item}, status: 201);
     } catch (error) {
-      return _json({'error': error.toString().replaceFirst('Bad state: ', '')},
-          status: 422);
+      return _json({'error': _friendlyError(error)}, status: 422);
     }
   }
 
@@ -170,6 +168,7 @@ class CatalogController {
     final codigo =
         _normalizeSigtap((payload['codigo_sigtap'] ?? '').toString().trim());
     final descricao = (payload['descricao'] ?? '').toString().trim();
+    final categoria = (payload['categoria'] ?? 'Outros').toString().trim();
     final secundariosIds =
         ((payload['secundarios_ids'] as List?) ?? const <dynamic>[])
             .map((e) => int.tryParse(e.toString()) ?? 0)
@@ -188,12 +187,12 @@ class CatalogController {
       final item = await _service.createProcedimentoPrincipal(
         codigoSigtap: codigo,
         descricao: descricao,
+        categoria: categoria.isEmpty ? 'Outros' : categoria,
         secundariosIds: secundariosIds,
       );
       return _json({'data': item}, status: 201);
     } catch (error) {
-      return _json({'error': error.toString().replaceFirst('Bad state: ', '')},
-          status: 422);
+      return _json({'error': _friendlyError(error)}, status: 422);
     }
   }
 
@@ -226,6 +225,7 @@ class CatalogController {
           ? _normalizeSigtap(payload['codigo_sigtap'].toString())
           : null,
       descricao: payload['descricao']?.toString(),
+      categoria: payload['categoria']?.toString(),
       secundariosIds: secundariosIds,
     );
     if (item == null) return _json({'error': 'Nao encontrado.'}, status: 404);
@@ -282,6 +282,14 @@ class CatalogController {
     final decoded = jsonDecode(body);
     if (decoded is! Map<String, dynamic>) return null;
     return decoded;
+  }
+
+  String _friendlyError(Object error) {
+    final raw = error.toString().replaceFirst('Bad state: ', '');
+    if (raw.contains('idx_procedimentos_v2_codigo_uq')) {
+      return 'Codigo SIGTAP ja cadastrado. Use outro codigo ou edite o existente.';
+    }
+    return raw;
   }
 
   Response _json(Map<String, dynamic> payload, {int status = 200}) {

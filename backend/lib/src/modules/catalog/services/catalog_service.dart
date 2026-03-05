@@ -65,11 +65,13 @@ class CatalogService {
   Future<Map<String, dynamic>> createProcedimentoPrincipal({
     required String codigoSigtap,
     required String descricao,
+    required String categoria,
     required List<int> secundariosIds,
   }) {
     return _repository.createProcedimentoPrincipal(
       codigoSigtap: codigoSigtap,
       descricao: descricao,
+      categoria: categoria,
       secundariosIds: secundariosIds,
     );
   }
@@ -78,12 +80,14 @@ class CatalogService {
     required int id,
     String? codigoSigtap,
     String? descricao,
+    String? categoria,
     List<int>? secundariosIds,
   }) {
     return _repository.updateProcedimento(
       id: id,
       codigoSigtap: codigoSigtap,
       descricao: descricao,
+      categoria: categoria,
       secundariosIds: secundariosIds,
     );
   }
