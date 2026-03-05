@@ -257,7 +257,6 @@ class AppComponent implements OnInit {
     final base = adminCatalogSecundarios
         .where((s) =>
             idAsInt(s['id']) > 0 &&
-            !isCatalogReadOnly(s) &&
             isAtivo(s['ativo']) &&
             (s['codigo_sigtap'] ?? '').toString().trim().isNotEmpty &&
             (s['descricao'] ?? '').toString().trim().isNotEmpty)
